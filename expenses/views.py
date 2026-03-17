@@ -80,9 +80,7 @@ def expense_list(request):
     return render(request, 'expenses/list.html', context)
 
 
-def expense_list_clean(request):
-    """开支列表纯净版（用于调试）"""
-    return render(request, 'expenses/list_clean.html')
+
 
 
 def add_expense(request):
@@ -224,18 +222,3 @@ def visualizations(request):
         'viz_type': viz_type,
     }
     return render(request, 'expenses/visualizations.html', context)
-
-
-def modal_debug(request):
-    """模态框调试页面"""
-    return render(request, 'expenses/modal_debug.html')
-
-
-def minimal_test(request):
-    """最小化模态框测试页面"""
-    return render(request, 'expenses/minimal_test.html')
-
-
-def nocss_test(request):
-    """无CSS测试页面"""
-    return render(request, 'expenses/nocss_test.html')

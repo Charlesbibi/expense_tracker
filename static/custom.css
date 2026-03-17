@@ -380,18 +380,34 @@ body {
     font-size: 12px;
 }
 
-.amount-wrapper input {
-    padding-left: 36px !important;
+.amount-input-group .input-group-text.amount-prefix-box {
+    background: #f0f4ff;
+    border: 1.5px solid var(--border);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0 14px;
+    line-height: 1;
 }
-.amount-prefix {
-    position: absolute;
-    left: 13px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-weight: 600;
-    font-size: .95rem;
+.amount-input-group input {
+    border: 1.5px solid var(--border) !important;
+    border-left: none !important;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+    padding: 11px 14px !important;
+    font-size: .9rem !important;
+    background: #fafbff !important;
+    transition: border-color .2s, box-shadow .2s !important;
+}
+.amount-input-group input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(79,129,255,.18) !important;
+    outline: none !important;
     z-index: 1;
+}
+.amount-input-group:focus-within .input-group-text.amount-prefix-box {
+    border-color: var(--primary);
 }
 
 .field-error {

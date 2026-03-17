@@ -44,7 +44,9 @@ python manage.py runserver
 ## 功能
 
 - **开支列表**：查看、筛选（按年/月）、删除开支记录
+- ![img.png](static/img/img.png)
 - **新增开支**：填写日期、类别、描述、金额
 - **数据可视化**：
+- ![img.png](static/img/img2.png)
   - 月度开支趋势折线图
   - 各类别开支占比饼图

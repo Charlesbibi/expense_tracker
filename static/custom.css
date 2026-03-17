@@ -202,6 +202,58 @@ body {
     font-size: .85rem !important;
 }
 
+/* ── 筛选按钮 ───────────────────────────────────────────────── */
+.filter-actions {
+    display: flex;
+    gap: 8px;
+}
+.btn-filter, .btn-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: .85rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: all .25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.btn-filter {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff;
+    box-shadow: 0 3px 12px rgba(79, 129, 255, 0.3);
+}
+.btn-filter:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    box-shadow: 0 5px 16px rgba(79, 129, 255, 0.4);
+    transform: translateY(-1px);
+}
+.btn-filter:active {
+    transform: translateY(0) scale(0.98);
+}
+.btn-clear {
+    background: linear-gradient(135deg, #fff 0%, #f8faff 100%);
+    color: var(--text-muted);
+    border: 1.5px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.btn-clear:hover {
+    border-color: var(--red);
+    color: var(--red);
+    background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+    transform: translateY(-1px);
+}
+.btn-clear:active {
+    transform: translateY(0) scale(0.98);
+}
+.btn-filter i, .btn-clear i {
+    font-size: 1rem;
+}
+
 /* ── 开支表格 ─────────────────────────────────────────────── */
 .expense-table {
     font-size: .875rem;
@@ -522,6 +574,7 @@ body {
     .filter-bar { flex-direction: column; align-items: flex-start; }
     .filter-form { width: 100%; flex-wrap: wrap; }
     .filter-select { max-width: 100%; }
+    .filter-actions { width: 100%; justify-content: flex-start; }
     .desc-cell { max-width: 140px; }
 }
 

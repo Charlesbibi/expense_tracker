@@ -258,40 +258,44 @@
 
 <!-- 添加开支模态框 -->
 <div class="modal fade" id="addExpenseModal" tabindex="-1" aria-labelledby="addExpenseModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-add-expense">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addExpenseModalLabel">
-                    <i class="bi bi-plus-circle-dotted me-2"></i>新增开支
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            <div class="modal-header-add">
+                <div class="modal-icon-header">
+                    <i class="bi bi-plus-lg"></i>
+                </div>
+                <h5 class="modal-title-add" id="addExpenseModalLabel">新增开支</h5>
+                <button type="button" class="btn-close-add" data-bs-dismiss="modal" aria-label="关闭">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body-add">
                 <form id="addExpenseForm" novalidate>
                     {% csrf_token %}
 
                     <!-- 错误提示 -->
-                    <div id="formError" class="alert alert-danger d-none"></div>
+                    <div id="formError" class="alert-error d-none"></div>
 
                     <!-- 日期 -->
-                    <div class="mb-3">
-                        <label for="id_date" class="form-label">
-                            <i class="bi bi-calendar-event me-1 text-primary"></i>日期 <span class="text-danger">*</span>
+                    <div class="form-group-add">
+                        <label for="id_date" class="form-label-add">
+                            <i class="bi bi-calendar3"></i>日期
                         </label>
-                        <input type="date" class="form-control" id="id_date" name="date" required value="{{ form.date.value|default:'' }}">
+                        <input type="date" class="form-input-add" id="id_date" name="date" required value="{{ form.date.value|default:'' }}">
                     </div>
 
                     <!-- 类别 -->
-                    <div class="mb-3">
-                        <label for="id_category" class="form-label">
-                            <i class="bi bi-tag me-1 text-primary"></i>类别 <span class="text-danger">*</span>
+                    <div class="form-group-add">
+                        <label for="id_category" class="form-label-add">
+                            <i class="bi bi-tag"></i>类别
                         </label>
-                        <select class="form-select" id="id_category" name="category" required>
+                        <select class="form-input-add form-select-add" id="id_category" name="category" required>
                             <option value="">请选择类别</option>
                             <!-- 类别选项将通过 AJAX 动态加载 -->
                         </select>
-                        <div id="categoryLoading" class="text-muted small mt-1 d-none">
-                            <i class="bi bi-arrow-repeat spin"></i> 加载类别中…
+                        <div id="categoryLoading" class="form-loading d-none">
+                            <i class="bi bi-arrow-repeat spin"></i>
+                            <span>加载类别中…</span>
                         </div>
                     </div>
 
@@ -327,31 +331,28 @@
 </script>
 
                     <!-- 描述 -->
-                    <div class="mb-3">
-                        <label for="id_description" class="form-label">
-                            <i class="bi bi-chat-left-text me-1 text-primary"></i>描述 <span class="text-muted small">（可选）</span>
+                    <div class="form-group-add">
+                        <label for="id_description" class="form-label-add form-label-add--optional">
+                            <i class="bi bi-chat-square-text"></i>描述
                         </label>
-                        <input type="text" class="form-control" id="id_description" name="description" placeholder="请输入开支描述（可选）...">
+                        <input type="text" class="form-input-add" id="id_description" name="description" placeholder="添加备注（可选）...">
                     </div>
 
                     <!-- 金额 -->
-                    <div class="mb-3">
-                        <label for="id_amount" class="form-label">
-                            <i class="bi bi-currency-yen me-1 text-primary"></i>金额（元） <span class="text-danger">*</span>
+                    <div class="form-group-add">
+                        <label for="id_amount" class="form-label-add">
+                            <i class="bi bi-currency-yen"></i>金额
                         </label>
-                        <div class="input-group">
-                            <span class="input-group-text">¥</span>
-                            <input type="number" class="form-control" id="id_amount" name="amount"
-                                   placeholder="0.00" step="0.01" min="0.01" required>
-                        </div>
+                        <input type="number" class="form-input-add form-input-add--amount" id="id_amount" name="amount"
+                               placeholder="0.00" step="0.01" min="0.01" required>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg me-1"></i>取消
+            <div class="modal-footer-add">
+                <button type="button" class="btn-add btn-add--cancel" data-bs-dismiss="modal">
+                    取消
                 </button>
-                <button type="button" class="btn btn-primary" id="submitExpenseBtn">
+                <button type="button" class="btn-add btn-add--submit" id="submitExpenseBtn">
                     <i class="bi bi-check-lg me-1"></i>保存记录
                 </button>
             </div>
@@ -361,70 +362,71 @@
 
 <!-- 编辑开支模态框 -->
 <div class="modal fade" id="editExpenseModal" tabindex="-1" aria-labelledby="editExpenseModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-add-expense">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editExpenseModalLabel">
-                    <i class="bi bi-pencil-square me-2"></i>编辑开支
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            <div class="modal-header-add">
+                <div class="modal-icon-header modal-icon-header--edit">
+                    <i class="bi bi-pencil"></i>
+                </div>
+                <h5 class="modal-title-add" id="editExpenseModalLabel">编辑开支</h5>
+                <button type="button" class="btn-close-add" data-bs-dismiss="modal" aria-label="关闭">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body-add">
                 <form id="editExpenseForm" novalidate>
                     {% csrf_token %}
                     <input type="hidden" id="editExpenseId" name="expense_id">
 
                     <!-- 错误提示 -->
-                    <div id="editFormError" class="alert alert-danger d-none"></div>
+                    <div id="editFormError" class="alert-error d-none"></div>
 
                     <!-- 日期 -->
-                    <div class="mb-3">
-                        <label for="edit_id_date" class="form-label">
-                            <i class="bi bi-calendar-event me-1 text-primary"></i>日期 <span class="text-danger">*</span>
+                    <div class="form-group-add">
+                        <label for="edit_id_date" class="form-label-add">
+                            <i class="bi bi-calendar3"></i>日期
                         </label>
-                        <input type="date" class="form-control" id="edit_id_date" name="date" required>
+                        <input type="date" class="form-input-add" id="edit_id_date" name="date" required>
                     </div>
 
                     <!-- 类别 -->
-                    <div class="mb-3">
-                        <label for="edit_id_category" class="form-label">
-                            <i class="bi bi-tag me-1 text-primary"></i>类别 <span class="text-danger">*</span>
+                    <div class="form-group-add">
+                        <label for="edit_id_category" class="form-label-add">
+                            <i class="bi bi-tag"></i>类别
                         </label>
-                        <select class="form-select" id="edit_id_category" name="category" required>
+                        <select class="form-input-add form-select-add" id="edit_id_category" name="category" required>
                             <option value="">请选择类别</option>
                             <!-- 类别选项将通过 AJAX 动态加载 -->
                         </select>
-                        <div id="editCategoryLoading" class="text-muted small mt-1 d-none">
-                            <i class="bi bi-arrow-repeat spin"></i> 加载类别中…
+                        <div id="editCategoryLoading" class="form-loading d-none">
+                            <i class="bi bi-arrow-repeat spin"></i>
+                            <span>加载类别中…</span>
                         </div>
                     </div>
 
                     <!-- 描述 -->
-                    <div class="mb-3">
-                        <label for="edit_id_description" class="form-label">
-                            <i class="bi bi-chat-left-text me-1 text-primary"></i>描述 <span class="text-muted small">（可选）</span>
+                    <div class="form-group-add">
+                        <label for="edit_id_description" class="form-label-add form-label-add--optional">
+                            <i class="bi bi-chat-square-text"></i>描述
                         </label>
-                        <input type="text" class="form-control" id="edit_id_description" name="description" placeholder="请输入开支描述（可选）...">
+                        <input type="text" class="form-input-add" id="edit_id_description" name="description" placeholder="添加备注（可选）...">
                     </div>
 
                     <!-- 金额 -->
-                    <div class="mb-3">
-                        <label for="edit_id_amount" class="form-label">
-                            <i class="bi bi-currency-yen me-1 text-primary"></i>金额（元） <span class="text-danger">*</span>
+                    <div class="form-group-add">
+                        <label for="edit_id_amount" class="form-label-add">
+                            <i class="bi bi-currency-yen"></i>金额
                         </label>
-                        <div class="input-group">
-                            <span class="input-group-text">¥</span>
-                            <input type="number" class="form-control" id="edit_id_amount" name="amount"
-                                   placeholder="0.00" step="0.01" min="0.01" required>
-                        </div>
+                        <input type="number" class="form-input-add form-input-add--amount" id="edit_id_amount" name="amount"
+                               placeholder="0.00" step="0.01" min="0.01" required>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg me-1"></i>取消
+            <div class="modal-footer-add">
+                <button type="button" class="btn-add btn-add--cancel" data-bs-dismiss="modal">
+                    取消
                 </button>
-                <button type="button" class="btn btn-primary" id="submitEditBtn">
+                <button type="button" class="btn-add btn-add--submit" id="submitEditBtn">
                     <i class="bi bi-check-lg me-1"></i>保存修改
                 </button>
             </div>
@@ -494,6 +496,7 @@ function loadCategories() {
 document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
     loadCategoriesForEdit();  // 加载编辑模态框的类别列表
+    initAmountInputBehavior();  // 初始化金额输入框行为
 });
 
 // 添加开支 AJAX 提交
@@ -618,6 +621,87 @@ document.querySelectorAll('.expense-row').forEach((row, i) => {
         row.style.transform = 'translateX(0)';
     }, i * 40 + 100);
 });
+
+// ─── 金额输入框增强交互 ───────────────────────────────────────
+
+function initAmountInputBehavior() {
+    const amountInputs = document.querySelectorAll('.form-input-add--amount');
+
+    amountInputs.forEach(input => {
+        // 1. 输入时自动格式化（添加千位分隔符）
+        let lastValue = '';
+
+        input.addEventListener('input', function(e) {
+            const value = e.target.value;
+
+            // 只允许数字和小数点
+            if (!/^\d*\.?\d*$/.test(value)) {
+                e.target.value = lastValue;
+                return;
+            }
+
+            // 保存有效值
+            lastValue = value;
+
+            // 输入时显示简单的提示
+            if (value && !isNaN(parseFloat(value))) {
+                const formatted = parseFloat(value).toLocaleString('zh-CN', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                });
+                e.target.title = formatted;
+            } else {
+                e.target.title = '';
+            }
+        });
+
+        // 2. 失去焦点时格式化显示
+        input.addEventListener('blur', function(e) {
+            const value = e.target.value;
+            if (value && !isNaN(parseFloat(value))) {
+                // 保留两位小数
+                const numValue = parseFloat(value);
+                if (numValue > 0) {
+                    e.target.value = numValue.toFixed(2);
+                }
+            }
+        });
+
+        // 3. 获得焦点时选中全部内容，方便快速修改
+        input.addEventListener('focus', function(e) {
+            e.target.select();
+        });
+
+        // 4. 限制小数位数（最多2位）
+        input.addEventListener('keydown', function(e) {
+            const value = e.target.value;
+            const hasDot = value.includes('.');
+
+            // 如果已经有小数点，限制小数位数为2位
+            if (hasDot) {
+                const parts = value.split('.');
+                if (parts[1] && parts[1].length >= 2) {
+                    // 允许删除键和导航键
+                    const allowedKeys = [
+                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                        'Home', 'End'
+                    ];
+                    if (!allowedKeys.includes(e.key)) {
+                        e.preventDefault();
+                    }
+                }
+            }
+        });
+
+        // 5. 防止输入多个小数点
+        input.addEventListener('keypress', function(e) {
+            if (e.key === '.' && e.target.value.includes('.')) {
+                e.preventDefault();
+            }
+        });
+    });
+}
 
 // ─── 编辑功能相关函数 ───────────────────────────────────────
 

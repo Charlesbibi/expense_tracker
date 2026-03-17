@@ -18,9 +18,16 @@
             {% endif %}
         </p>
     </div>
-    <a href="{% url 'expenses:add' %}" class="btn btn-primary btn-add-float">
-        <i class="bi bi-plus-lg me-1"></i>添加开支
-    </a>
+    <div class="d-flex gap-3">
+        <a href="{% url 'expenses:add_category' %}" class="btn btn-action btn-action--category">
+            <i class="bi bi-tags-fill"></i>
+            <span>添加类别</span>
+        </a>
+        <a href="{% url 'expenses:add' %}" class="btn btn-action btn-action--expense">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>添加开支</span>
+        </a>
+    </div>
 </div>
 
 <!-- 统计卡片 -->

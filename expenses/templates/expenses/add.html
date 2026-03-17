@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}新增开支 - 家庭财务{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7 col-xl-6">
+
+        <!-- 页面标题 -->
+        <div class="page-header mb-4">
+            <h2 class="page-title mb-1">
+                <i class="bi bi-plus-circle-dotted me-2 text-primary"></i>新增开支
+            </h2>
+            <p class="text-muted small mb-0">记录一笔家庭支出</p>
+        </div>
+
+        <!-- 表单卡片 -->
+        <div class="content-card form-card">
+            <div class="form-card__header">
+                <div class="form-card__icon">
+                    <i class="bi bi-pencil-square"></i>
+                </div>
+                <span>填写开支信息</span>
+            </div>
+
+            <div class="form-card__body">
+                <form method="post" novalidate id="expenseForm">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+                            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                            <div>{{ form.non_field_errors.as_text }}</div>
+                        </div>
+                    {% endif %}
+
+                    <!-- 日期 -->
+                    <div class="form-group-modern mb-4">
+                        <label class="form-label-modern" for="{{ form.date.id_for_label }}">
+                            <i class="bi bi-calendar-event me-1 text-primary"></i>
+                            日期 <span class="required-star">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            {{ form.date }}
+                            <div class="input-focus-line"></div>
+                        </div>
+                        {% if form.date.errors %}
+                            <div class="field-error"><i class="bi bi-x-circle me-1"></i>{{ form.date.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 类别 -->
+                    <div class="form-group-modern mb-4">
+                        <label class="form-label-modern" for="{{ form.category.id_for_label }}">
+                            <i class="bi bi-tag me-1 text-primary"></i>
+                            类别 <span class="required-star">*</span>
+                        </label>
+                        <div class="input-wrapper select-wrapper">
+                            {{ form.category }}
+                            <i class="bi bi-chevron-down select-arrow"></i>
+                            <div class="input-focus-line"></div>
+                        </div>
+                        {% if form.category.errors %}
+                            <div class="field-error"><i class="bi bi-x-circle me-1"></i>{{ form.category.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 描述 -->
+                    <div class="form-group-modern mb-4">
+                        <label class="form-label-modern" for="{{ form.description.id_for_label }}">
+                            <i class="bi bi-chat-left-text me-1 text-primary"></i>
+                            描述 <span class="required-star">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            {{ form.description }}
+                            <div class="input-focus-line"></div>
+                        </div>
+                        {% if form.description.errors %}
+                            <div class="field-error"><i class="bi bi-x-circle me-1"></i>{{ form.description.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 金额 -->
+                    <div class="form-group-modern mb-5">
+                        <label class="form-label-modern" for="{{ form.amount.id_for_label }}">
+                            <i class="bi bi-currency-yen me-1 text-primary"></i>
+                            金额（元） <span class="required-star">*</span>
+                        </label>
+                        <div class="input-wrapper amount-wrapper">
+                            <span class="amount-prefix">¥</span>
+                            {{ form.amount }}
+                            <div class="input-focus-line"></div>
+                        </div>
+                        {% if form.amount.errors %}
+                            <div class="field-error"><i class="bi bi-x-circle me-1"></i>{{ form.amount.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-primary btn-form-submit flex-fill" id="submitBtn">
+                            <i class="bi bi-check2-circle me-2"></i>保存记录
+                        </button>
+                        <a href="{% url 'expenses:list' %}" class="btn btn-outline-secondary btn-form-cancel">
+                            <i class="bi bi-arrow-left me-1"></i>返回
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 快捷提示卡 -->
+        <div class="tip-card mt-3">
+            <i class="bi bi-lightbulb text-warning me-2"></i>
+            <span class="text-muted small">提示：类别支持一级和二级分类，格式为「父类 &gt; 子类」</span>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 表单提交加载状态
+document.getElementById('expenseForm').addEventListener('submit', function() {
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>保存中…';
+    btn.disabled = true;
+});
+
+// 给 Django 表单字段加上 Bootstrap 样式类
+document.querySelectorAll('#expenseForm input, #expenseForm select').forEach(el => {
+    el.classList.add('form-control');
+    if (el.tagName === 'SELECT') {
+        el.classList.remove('form-control');
+        el.classList.add('form-select');
+    }
+});
+</script>
+{% endblock %}

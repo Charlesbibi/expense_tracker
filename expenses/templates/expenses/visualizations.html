@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block title %}数据可视化 - 家庭财务{% endblock %}
+
+{% block content %}
+
+<!-- 页面标题 -->
+<div class="page-header d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="page-title mb-1">
+            <i class="bi bi-bar-chart-line me-2 text-primary"></i>数据可视化
+        </h2>
+        <p class="text-muted small mb-0">{{ current_year }} 年度支出分析</p>
+    </div>
+
+    <!-- 年份 & 分类切换 -->
+    <div class="d-flex align-items-center gap-2">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="viz_type" value="{{ viz_type }}">
+            <select name="year" class="form-select form-select-sm" style="width:110px" onchange="this.form.submit()">
+                {% for y in all_years %}
+                    <option value="{{ y.year }}" {% if current_year == y.year %}selected{% endif %}>{{ y.year }}年</option>
+                {% endfor %}
+            </select>
+        </form>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="?year={{ current_year }}&viz_type=primary"
+               class="btn {% if viz_type == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                <i class="bi bi-diagram-2 me-1"></i>一级
+            </a>
+            <a href="?year={{ current_year }}&viz_type=secondary"
+               class="btn {% if viz_type == 'secondary' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                <i class="bi bi-diagram-3 me-1"></i>二级
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 月度统计条形图 + 分类饼图 -->
+<div class="row g-4 mb-4">
+
+    <!-- 月度支出柱状图 -->
+    <div class="col-lg-7">
+        <div class="content-card chart-card h-100">
+            <div class="chart-card__header">
+                <span><i class="bi bi-bar-chart me-2 text-primary"></i>月度支出趋势</span>
+                <span class="badge bg-primary-subtle text-primary">{{ current_year }}</span>
+            </div>
+            <div class="chart-card__body">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类占比饼图 -->
+    <div class="col-lg-5">
+        <div class="content-card chart-card h-100">
+            <div class="chart-card__header">
+                <span><i class="bi bi-pie-chart me-2 text-primary"></i>
+                    {% if viz_type == 'secondary' %}二级分类{% else %}一级分类{% endif %}占比
+                </span>
+                <span class="badge bg-primary-subtle text-primary">{{ current_year }}</span>
+            </div>
+            <div class="chart-card__body d-flex align-items-center justify-content-center">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- 分类明细排行 -->
+<div class="content-card mb-4">
+    <div class="chart-card__header">
+        <span><i class="bi bi-trophy me-2 text-warning"></i>支出排行</span>
+        <span class="text-muted small">{{ current_year }} 年 · {% if viz_type == 'primary' %}一级分类{% else %}二级分类{% endif %}</span>
+    </div>
+    <div class="px-4 pb-4">
+        {% if categories %}
+            {% with total_amt=amounts %}
+            <div id="rankingList" class="mt-3"></div>
+            {% endwith %}
+        {% else %}
+            <p class="text-muted text-center py-4">
+                <i class="bi bi-inbox fs-2 d-block mb-2"></i>暂无数据
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ─── 原始数据 ───────────────────────────────────────────
+const monthlyData = {{ monthly_data|safe }};
+const categories  = {{ categories|safe }};
+const amounts     = {{ amounts|safe }};
+
+// ─── 调色板 ─────────────────────────────────────────────
+const PALETTE = [
+    '#4f81ff','#f6753a','#22c55e','#a855f7','#eab308',
+    '#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1'
+];
+const PALETTEa = PALETTE.map(c => c + 'bb');
+
+// ─── 月度柱状图 ──────────────────────────────────────────
+const monthLabels = ['1月','2月','3月','4月','5月','6月',
+                     '7月','8月','9月','10月','11月','12月'];
+const monthValues = Array.from({length:12}, (_,i) => monthlyData[i+1] || 0);
+const maxVal = Math.max(...monthValues);
+
+new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+        labels: monthLabels,
+        datasets: [{
+            label: '月支出(元)',
+            data: monthValues,
+            backgroundColor: monthValues.map(v =>
+                v === maxVal ? '#4f81ff' : '#4f81ff66'
+            ),
+            borderColor: '#4f81ff',
+            borderWidth: 1.5,
+            borderRadius: 8,
+            borderSkipped: false
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ` ¥${ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f1f5f9' },
+                ticks: {
+                    callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v)
+                }
+            },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// ─── 分类饼图 ────────────────────────────────────────────
+if (categories.length > 0) {
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'doughnut',
+        data: {
+            labels: categories,
+            datasets: [{
+                data: amounts,
+                backgroundColor: PALETTE.slice(0, categories.length),
+                borderColor: '#ffffff',
+                borderWidth: 3,
+                hoverOffset: 12
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '62%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 16, boxWidth: 12, font: { size: 12 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                            const pct = ((ctx.raw / total) * 100).toFixed(1);
+                            return ` ¥${ctx.raw.toLocaleString()} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+} else {
+    document.getElementById('categoryChart').parentElement.innerHTML =
+        '<p class="text-muted text-center py-5"><i class="bi bi-pie-chart fs-1 d-block mb-2 opacity-25"></i>暂无分类数据</p>';
+}
+
+// ─── 排行榜渲染 ──────────────────────────────────────────
+const rankingEl = document.getElementById('rankingList');
+if (rankingEl && categories.length > 0) {
+    const total = amounts.reduce((a,b) => a+b, 0);
+    const sorted = categories.map((c,i) => ({ name:c, val:amounts[i] }))
+                             .sort((a,b) => b.val - a.val);
+    rankingEl.innerHTML = sorted.map((item, i) => {
+        const pct = total > 0 ? (item.val / total * 100).toFixed(1) : 0;
+        const color = PALETTE[i % PALETTE.length];
+        return `
+        <div class="ranking-item mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="rank-badge" style="background:${color}">${i+1}</span>
+                    <span class="fw-medium">${item.name}</span>
+                </div>
+                <div class="text-end">
+                    <span class="fw-bold" style="color:${color}">¥${item.val.toLocaleString('zh-CN',{minimumFractionDigits:2})}</span>
+                    <span class="text-muted small ms-2">${pct}%</span>
+                </div>
+            </div>
+            <div class="progress ranking-progress" style="height:6px">
+                <div class="progress-bar" role="progressbar"
+                     style="width:${pct}%; background:${color}; border-radius:4px;"
+                     data-width="${pct}"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // 进度条动画
+    setTimeout(() => {
+        document.querySelectorAll('.ranking-progress .progress-bar').forEach(bar => {
+            bar.style.transition = 'width .8s cubic-bezier(.4,0,.2,1)';
+        });
+    }, 100);
+}
+</script>
+{% endblock %}

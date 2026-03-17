@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+
+{% block title %}开支列表 - 家庭财务{% endblock %}
+
+{% block content %}
+
+<!-- 页面标题 -->
+<div class="page-header d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="page-title mb-1"><i class="bi bi-receipt-cutoff me-2 text-primary"></i>开支列表</h2>
+        <p class="text-muted small mb-0">
+            {% if current_year and current_month %}
+                {{ current_year }} 年 {{ current_month }} 月账单
+            {% elif current_year %}
+                {{ current_year }} 年全年账单
+            {% else %}
+                全部账单记录
+            {% endif %}
+        </p>
+    </div>
+    <a href="{% url 'expenses:add' %}" class="btn btn-primary btn-add-float">
+        <i class="bi bi-plus-lg me-1"></i>添加开支
+    </a>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--blue">
+            <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">¥{{ total_expense|floatformat:2 }}</div>
+                <div class="stat-label">总支出</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--purple">
+            <div class="stat-icon"><i class="bi bi-list-ul"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ expenses|length }}</div>
+                <div class="stat-label">笔数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--green">
+            <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">
+                    {% if expenses %}{{ expenses.0.date|date:"m/d" }}{% else %}--{% endif %}
+                </div>
+                <div class="stat-label">最近记录</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--orange">
+            <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">
+                    {% if expenses %}¥{% widthratio total_expense expenses|length 1 %}{% else %}--{% endif %}
+                </div>
+                <div class="stat-label">笔均支出</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 筛选 & 表格卡片 -->
+<div class="content-card">
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+        <div class="filter-bar__label">
+            <i class="bi bi-funnel me-1"></i>筛选
+        </div>
+        <form method="get" class="filter-form d-flex flex-wrap gap-2 align-items-center">
+            <select name="year" class="form-select form-select-sm filter-select">
+                <option value="">全部年份</option>
+                {% for year_obj in all_years %}
+                    <option value="{{ year_obj.year }}"
+                        {% if current_year == year_obj.year %}selected{% endif %}>
+                        {{ year_obj.year }} 年
+                    </option>
+                {% endfor %}
+            </select>
+            <select name="month" class="form-select form-select-sm filter-select">
+                <option value="">全部月份</option>
+                <option value="1"  {% if current_month == 1  %}selected{% endif %}>1 月</option>
+                <option value="2"  {% if current_month == 2  %}selected{% endif %}>2 月</option>
+                <option value="3"  {% if current_month == 3  %}selected{% endif %}>3 月</option>
+                <option value="4"  {% if current_month == 4  %}selected{% endif %}>4 月</option>
+                <option value="5"  {% if current_month == 5  %}selected{% endif %}>5 月</option>
+                <option value="6"  {% if current_month == 6  %}selected{% endif %}>6 月</option>
+                <option value="7"  {% if current_month == 7  %}selected{% endif %}>7 月</option>
+                <option value="8"  {% if current_month == 8  %}selected{% endif %}>8 月</option>
+                <option value="9"  {% if current_month == 9  %}selected{% endif %}>9 月</option>
+                <option value="10" {% if current_month == 10 %}selected{% endif %}>10 月</option>
+                <option value="11" {% if current_month == 11 %}selected{% endif %}>11 月</option>
+                <option value="12" {% if current_month == 12 %}selected{% endif %}>12 月</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary px-3">
+                <i class="bi bi-search me-1"></i>筛选
+            </button>
+            <a href="{% url 'expenses:list' %}" class="btn btn-sm btn-outline-secondary px-3">
+                <i class="bi bi-x-lg me-1"></i>清除
+            </a>
+        </form>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-responsive">
+        <table class="expense-table table mb-0">
+            <thead>
+                <tr>
+                    <th style="width:120px"><i class="bi bi-calendar3 me-1 text-muted"></i>日期</th>
+                    <th><i class="bi bi-tag me-1 text-muted"></i>类别</th>
+                    <th><i class="bi bi-chat-text me-1 text-muted"></i>描述</th>
+                    <th class="text-end" style="width:130px"><i class="bi bi-currency-yen me-1 text-muted"></i>金额</th>
+                    <th class="text-center" style="width:80px">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr class="expense-row" style="animation-delay: {{ forloop.counter0 }}00ms">
+                    <td>
+                        <span class="date-badge">{{ expense.date|date:"Y/m/d" }}</span>
+                    </td>
+                    <td>
+                        {% with cat_path=expense.category.get_full_path %}
+                            {% if ">" in cat_path %}
+                                <span class="category-tag parent">{{ cat_path|truncatechars_html:20 }}</span>
+                            {% else %}
+                                <span class="category-tag">{{ cat_path }}</span>
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="desc-cell">{{ expense.description }}</td>
+                    <td class="text-end">
+                        <span class="amount-text">¥{{ expense.amount|floatformat:2 }}</span>
+                    </td>
+                    <td class="text-center">
+                        <form method="post" action="{% url 'expenses:expense_delete' expense.pk %}"
+                              class="d-inline" onsubmit="return confirmDelete(this)">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-icon btn-delete" title="删除">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 text-muted"></i>
+                        <span>暂无开支记录</span><br>
+                        <a href="{% url 'expenses:add' %}" class="btn btn-sm btn-primary mt-3">
+                            <i class="bi bi-plus-lg me-1"></i>添加第一笔
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 底部汇总 -->
+    {% if expenses %}
+    <div class="table-footer d-flex align-items-center justify-content-between px-4 py-3">
+        <span class="text-muted small">共 <strong>{{ expenses|length }}</strong> 笔记录</span>
+        <span class="total-summary">
+            合计：<strong class="text-primary fs-5">¥{{ total_expense|floatformat:2 }}</strong>
+        </span>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(form) {
+    return confirm('确定要删除这笔开支记录吗？');
+}
+// 表格行淡入动画
+document.querySelectorAll('.expense-row').forEach((row, i) => {
+    row.style.opacity = 0;
+    row.style.transform = 'translateX(-8px)';
+    setTimeout(() => {
+        row.style.transition = 'opacity .3s ease, transform .3s ease';
+        row.style.opacity = 1;
+        row.style.transform = 'translateX(0)';
+    }, i * 40 + 100);
+});
+</script>
+{% endblock %}

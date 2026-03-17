@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}添加类别 - 家庭财务{% endblock %}
+
+{% block content %}
+
+<div class="page-header mb-4">
+    <h2 class="page-title mb-1">
+        <i class="bi bi-tags me-2 text-primary"></i>添加开支类别
+    </h2>
+    <p class="text-muted small mb-0">管理开支的一级和二级分类</p>
+</div>
+
+<div class="row g-4">
+
+    <!-- 左：新增表单 -->
+    <div class="col-lg-5">
+        <div class="content-card form-card">
+            <div class="form-card__header">
+                <div class="form-card__icon">
+                    <i class="bi bi-plus-circle"></i>
+                </div>
+                <span>新增类别</span>
+            </div>
+            <div class="form-card__body">
+                <form method="post" novalidate id="categoryForm">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+                            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                            <div>{{ form.non_field_errors.as_text }}</div>
+                        </div>
+                    {% endif %}
+
+                    <!-- 类别名称 -->
+                    <div class="form-group-modern mb-4">
+                        <label class="form-label-modern" for="{{ form.name.id_for_label }}">
+                            <i class="bi bi-tag me-1 text-primary"></i>
+                            类别名称 <span class="required-star">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            {{ form.name }}
+                            <div class="input-focus-line"></div>
+                        </div>
+                        {% if form.name.errors %}
+                            <div class="field-error"><i class="bi bi-x-circle me-1"></i>{{ form.name.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 父级类别 -->
+                    <div class="form-group-modern mb-5">
+                        <label class="form-label-modern" for="{{ form.parent.id_for_label }}">
+                            <i class="bi bi-diagram-2 me-1 text-primary"></i>
+                            父级类别
+                        </label>
+                        <div class="input-wrapper select-wrapper">
+                            {{ form.parent }}
+                            <i class="bi bi-chevron-down select-arrow"></i>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            <i class="bi bi-info-circle me-1"></i>
+                            不选则创建为<strong>一级分类</strong>；选择后则创建为该分类下的<strong>二级分类</strong>
+                        </div>
+                        {% if form.parent.errors %}
+                            <div class="field-error"><i class="bi bi-x-circle me-1"></i>{{ form.parent.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-primary btn-form-submit flex-fill" id="submitBtn">
+                            <i class="bi bi-check2-circle me-2"></i>保存类别
+                        </button>
+                        <a href="{% url 'expenses:list' %}" class="btn btn-outline-secondary btn-form-cancel">
+                            <i class="bi bi-arrow-left me-1"></i>返回
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 提示卡 -->
+        <div class="tip-card mt-3">
+            <i class="bi bi-lightbulb text-warning me-2"></i>
+            <span class="text-muted small">
+                支持两级分类结构：<strong>一级</strong>（如：餐饮）→ <strong>二级</strong>（如：早餐、外卖）
+            </span>
+        </div>
+    </div>
+
+    <!-- 右：现有分类树 -->
+    <div class="col-lg-7">
+        <div class="content-card">
+            <div class="chart-card__header">
+                <span><i class="bi bi-diagram-3 me-2 text-primary"></i>现有分类</span>
+                <span class="badge bg-primary-subtle text-primary">
+                    共 {{ top_categories|length }} 个一级分类
+                </span>
+            </div>
+            <div class="px-4 py-3">
+                {% if top_categories %}
+                    <div class="category-tree">
+                        {% for cat in top_categories %}
+                        <div class="cat-node cat-node--primary">
+                            <div class="cat-node__header">
+                                <span class="cat-icon cat-icon--primary">
+                                    <i class="bi bi-folder2"></i>
+                                </span>
+                                <span class="cat-name fw-semibold">{{ cat.name }}</span>
+                                <span class="cat-badge ms-auto">一级</span>
+                            </div>
+                            {% with children=cat.expensecategory_set.all %}
+                            {% if children %}
+                            <div class="cat-children">
+                                {% for child in children %}
+                                <div class="cat-node cat-node--secondary">
+                                    <span class="cat-icon cat-icon--secondary">
+                                        <i class="bi bi-tag"></i>
+                                    </span>
+                                    <span class="cat-name text-muted">{{ child.name }}</span>
+                                    <span class="cat-badge cat-badge--secondary ms-auto">二级</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            {% endwith %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+                        暂无类别，快去新增第一个吧！
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 给 Django 表单字段挂上样式
+document.querySelectorAll('#categoryForm input[type="text"]').forEach(el => {
+    el.classList.add('form-control');
+});
+document.querySelectorAll('#categoryForm select').forEach(el => {
+    el.classList.add('form-select');
+});
+
+// 提交加载态
+document.getElementById('categoryForm').addEventListener('submit', function () {
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>保存中…';
+    btn.disabled = true;
+});
+
+// 新增成功高亮提示（URL 带 ?saved=1 时触发）
+{% if request.method == 'GET' and request.GET.saved %}
+    const firstNode = document.querySelector('.cat-node--primary');
+    if (firstNode) {
+        firstNode.style.transition = 'background .4s';
+        firstNode.style.background = '#eef3ff';
+        setTimeout(() => firstNode.style.background = '', 1500);
+    }
+{% endif %}
+</script>
+{% endblock %}

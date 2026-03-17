@@ -184,8 +184,19 @@ body {
     text-transform: uppercase;
     letter-spacing: .5px;
 }
+.filter-form {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+.filter-form > * {
+    flex-shrink: 0;
+}
 .filter-select {
-    max-width: 130px;
+    min-width: 120px;
+    max-width: 140px;
     border-radius: var(--radius-sm) !important;
     border-color: var(--border) !important;
     font-size: .85rem !important;
@@ -509,7 +520,7 @@ body {
     .stat-value { font-size: 1.1rem; }
     .form-card__body { padding: 20px 16px; }
     .filter-bar { flex-direction: column; align-items: flex-start; }
-    .filter-form { width: 100%; }
+    .filter-form { width: 100%; flex-wrap: wrap; }
     .filter-select { max-width: 100%; }
     .desc-cell { max-width: 140px; }
 }

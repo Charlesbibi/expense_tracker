@@ -43,7 +43,7 @@ body {
     box-shadow: 0 2px 20px rgba(30,58,138,.3);
     position: sticky;
     top: 0;
-    z-index: 1030;
+    z-index: 1000;  /* 降低到 1000，避免与模态框冲突 */
     padding: 0;
 }
 
@@ -412,6 +412,15 @@ body {
     box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
 }
 
+.btn-action--test {
+    background: linear-gradient(135deg, var(--orange) 0%, #ea580c 100%);
+    color: #fff;
+}
+.btn-action--test:hover {
+    background: linear-gradient(135deg, #ea580c 0%, var(--orange) 100%);
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.35);
+}
+
 /* 响应式：小屏下两个按钮上下排列 */
 @media (max-width: 576px) {
     .page-header .d-flex.gap-3 {
@@ -642,6 +651,19 @@ body {
 
 /* ── 分类树 ───────────────────────────────────────────────── */
 .category-tree { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Bootstrap Modal 修复 ───────────────────────────────────── */
+/* 移除所有 z-index 强制设置，让 Bootstrap 使用默认值 */
+/* 模态框相关的 z-index 由 Bootstrap 自动管理，无需手动设置 */
+
+/* 加载动画 */
+.spin {
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 
 /* ── 分页导航 ─────────────────────────────────────────────── */
 .pagination-modern {

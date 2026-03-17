@@ -95,14 +95,14 @@
         const now = new Date();
         navDate.textContent = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
     }
-    // 页面进入动画
-    document.querySelector('.app-main').style.opacity = 0;
-    document.querySelector('.app-main').style.transform = 'translateY(12px)';
-    requestAnimationFrame(() => {
-        document.querySelector('.app-main').style.transition = 'opacity .35s ease, transform .35s ease';
-        document.querySelector('.app-main').style.opacity = 1;
-        document.querySelector('.app-main').style.transform = 'translateY(0)';
-    });
+    // 注释掉页面进入动画（可能导致模态框问题）
+    // document.querySelector('.app-main').style.opacity = 0;
+    // document.querySelector('.app-main').style.transform = 'translateY(12px)';
+    // requestAnimationFrame(() => {
+    //     document.querySelector('.app-main').style.transition = 'opacity .35s ease, transform .35s ease';
+    //     document.querySelector('.app-main').style.opacity = 1;
+    //     document.querySelector('.app-main').style.transform = 'translateY(0)';
+    // });
 </script>
 {% block extra_js %}{% endblock %}
 </body>

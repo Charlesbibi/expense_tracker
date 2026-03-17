@@ -1,11 +1,27 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Sum, F
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import datetime
 from calendar import monthrange
+import json
 from .models import Expense, ExpenseCategory
 from .forms import ExpenseForm, CategoryForm
+
+
+def get_categories_api(request):
+    """API：获取所有类别列表（用于 AJAX 加载）"""
+    categories = ExpenseCategory.objects.all()
+    data = [
+        {
+            'id': cat.id,
+            'name': cat.name,
+            'full_path': cat.get_full_path()
+        }
+        for cat in categories
+    ]
+    print(f"[DEBUG] 返回类别数据: {len(data)} 个类别")
+    return JsonResponse({'success': True, 'categories': data})
 
 
 def home(request):
@@ -41,6 +57,9 @@ def expense_list(request):
     # 获取所有年份用于下拉选择
     all_years = Expense.objects.dates('date', 'year', order='DESC').distinct()
 
+    # 为模态框表单准备数据
+    form = ExpenseForm(initial={'date': datetime.now().strftime('%Y-%m-%d')})
+
     # 构建分页时保留筛选参数的查询字符串（去掉 page 参数）
     query_params = request.GET.copy()
     query_params.pop('page', None)
@@ -56,17 +75,43 @@ def expense_list(request):
         'current_month':       int(month) if month else None,
         'all_years':           all_years,
         'filter_query_string': filter_query_string,
+        'form':                form,  # 添加表单，用于获取分类列表
     }
     return render(request, 'expenses/list.html', context)
 
 
+def expense_list_clean(request):
+    """开支列表纯净版（用于调试）"""
+    return render(request, 'expenses/list_clean.html')
+
+
 def add_expense(request):
-    """添加开支"""
+    """添加开支（支持 AJAX 和普通提交）"""
     if request.method == 'POST':
         form = ExpenseForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('expenses:list')
+
+        # AJAX 请求
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            print(f"[DEBUG] 收到 AJAX 请求: {request.POST}")
+            if form.is_valid():
+                form.save()
+                print(f"[DEBUG] 表单验证成功，保存记录")
+                return JsonResponse({'success': True, 'message': '开支记录已成功添加'})
+            else:
+                print(f"[DEBUG] 表单验证失败: {form.errors}")
+                errors = {}
+                for field in form.errors:
+                    errors[field] = form.errors[field].as_text()
+                return JsonResponse({
+                    'success': False,
+                    'error': '表单验证失败',
+                    'errors': errors
+                })
+        else:
+            # 普通提交
+            if form.is_valid():
+                form.save()
+                return redirect('expenses:list')
     else:
         form = ExpenseForm()
 
@@ -179,3 +224,18 @@ def visualizations(request):
         'viz_type': viz_type,
     }
     return render(request, 'expenses/visualizations.html', context)
+
+
+def modal_debug(request):
+    """模态框调试页面"""
+    return render(request, 'expenses/modal_debug.html')
+
+
+def minimal_test(request):
+    """最小化模态框测试页面"""
+    return render(request, 'expenses/minimal_test.html')
+
+
+def nocss_test(request):
+    """无CSS测试页面"""
+    return render(request, 'expenses/nocss_test.html')

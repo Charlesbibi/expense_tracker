@@ -763,3 +763,11 @@ body {
     transition: background var(--transition);
 }
 .cat-node--secondary:hover { background: #faf8ff; }
+
+/* ─── 报表页热力图 ─────────────────────────────────── */
+.heatmap-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 20px 0;
+}

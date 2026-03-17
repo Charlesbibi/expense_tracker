@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Count
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from datetime import datetime
+from datetime import datetime, timedelta as datetime_timedelta
 from calendar import monthrange
 import json
 from .models import Expense, ExpenseCategory
@@ -257,3 +257,154 @@ def visualizations(request):
         'viz_type': viz_type,
     }
     return render(request, 'expenses/visualizations.html', context)
+
+
+def reports(request):
+    """统计报表页面"""
+    from datetime import date as _date
+
+    # 获取年份和月份参数
+    current_real_year = datetime.now().year
+    current_real_month = datetime.now().month
+
+    year = request.GET.get('year', current_real_year)
+    try:
+        year = int(year)
+    except ValueError:
+        year = current_real_year
+
+    month = request.GET.get('month', '')
+    if month:
+        try:
+            month = int(month)
+        except ValueError:
+            month = None
+
+    # 获取所有有数据的年份
+    db_years = list(Expense.objects.dates('date', 'year', order='DESC').distinct())
+    db_year_ints = [d.year for d in db_years]
+    if current_real_year not in db_year_ints:
+        db_years = [_date(current_real_year, 1, 1)] + db_years
+    all_years = db_years
+
+    # 基础查询
+    expenses_qs = Expense.objects.all()
+
+    # 年度统计
+    yearly_expenses = expenses_qs.filter(date__year=year)
+    yearly_total = yearly_expenses.aggregate(Sum('amount'))['amount__sum'] or 0
+    yearly_count = yearly_expenses.count()
+
+    # 月度统计（如果指定了月份）
+    if month:
+        monthly_expenses = expenses_qs.filter(date__year=year, date__month=month)
+        monthly_total = monthly_expenses.aggregate(Sum('amount'))['amount__sum'] or 0
+        monthly_count = monthly_expenses.count()
+    else:
+        monthly_total = None
+        monthly_count = None
+
+    # 日均、周均、月均
+    days_in_year = 366 if year % 4 == 0 else 365
+    if yearly_total > 0:
+        daily_avg = yearly_total / days_in_year
+        weekly_avg = yearly_total / 52
+        monthly_avg = yearly_total / 12
+    else:
+        daily_avg = 0
+        weekly_avg = 0
+        monthly_avg = 0
+
+    # 同比分析（与去年对比）
+    last_year = year - 1
+    last_year_total = expenses_qs.filter(date__year=last_year).aggregate(Sum('amount'))['amount__sum'] or 0
+    if last_year_total > 0:
+        yoy_growth = ((yearly_total - last_year_total) / last_year_total) * 100
+    else:
+        yoy_growth = 0 if yearly_total == 0 else 100
+
+    # 环比分析（与上个月对比，需要指定月份）
+    mom_growth = None
+    if month and month > 1:
+        last_month_total = expenses_qs.filter(
+            date__year=year, date__month=month - 1
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        if last_month_total > 0:
+            mom_growth = ((monthly_total - last_month_total) / last_month_total) * 100
+    elif month == 1:
+        # 1月份与去年12月对比
+        last_year_dec_total = expenses_qs.filter(
+            date__year=year - 1, date__month=12
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        if last_year_dec_total > 0:
+            mom_growth = ((monthly_total - last_year_dec_total) / last_year_dec_total) * 100
+
+    # 高消费日期标注（单日消费最高的前5天）
+    daily_totals = expenses_qs.filter(date__year=year).values('date').annotate(
+        daily_total=Sum('amount'),
+        daily_count=Count('id')
+    ).order_by('-daily_total')[:5]
+
+    # 每日消费分布（用于热力图）
+    daily_heatmap_data = {}
+    for m in range(1, 13):
+        end_day = monthrange(year, m)[1]
+        for d in range(1, end_day + 1):
+            daily_heatmap_data[f"{m:02d}-{d:02d}"] = 0
+
+    # 填充每日消费数据
+    for expense in yearly_expenses:
+        date_key = f"{expense.date.month:02d}-{expense.date.day:02d}"
+        if date_key in daily_heatmap_data:
+            daily_heatmap_data[date_key] += float(expense.amount)
+
+    # 月度趋势数据
+    monthly_trend_data = []
+    for m in range(1, 13):
+        month_total = expenses_qs.filter(date__year=year, date__month=m).aggregate(
+            Sum('amount')
+        )['amount__sum'] or 0
+        monthly_trend_data.append(float(month_total))
+
+    # 周消费数据（按周统计）
+    weekly_data = {}
+    for week in range(1, 54):  # 最多53周
+        week_start = datetime(year, 1, 1) + datetime_timedelta(weeks=week-1)
+        week_end = week_start + datetime_timedelta(days=6)
+        if week_end.year > year:
+            break
+        week_total = expenses_qs.filter(
+            date__range=(week_start.date(), week_end.date())
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        if week_total > 0:
+            weekly_data[week] = float(week_total)
+
+    # 类别排行榜（年度）
+    category_ranking = expenses_qs.filter(date__year=year).values(
+        'category__name', 'category__parent__name'
+    ).annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')[:10]
+
+    context = {
+        'year': year,
+        'month': month,
+        'all_years': all_years,
+        'yearly_total': yearly_total,
+        'yearly_count': yearly_count,
+        'monthly_total': monthly_total,
+        'monthly_count': monthly_count,
+        'daily_avg': daily_avg,
+        'weekly_avg': weekly_avg,
+        'monthly_avg': monthly_avg,
+        'last_year_total': last_year_total,
+        'yoy_growth': yoy_growth,
+        'mom_growth': mom_growth,
+        'daily_totals': list(daily_totals),
+        'daily_heatmap_data': daily_heatmap_data,
+        'monthly_trend_data': monthly_trend_data,
+        'weekly_data': weekly_data,
+        'category_ranking': list(category_ranking),
+    }
+    return render(request, 'expenses/reports.html', context)

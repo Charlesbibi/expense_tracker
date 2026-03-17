@@ -7,7 +7,7 @@ class ExpenseForm(forms.ModelForm):
         fields = ['date', 'category', 'description', 'amount']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
-            'description': forms.TextInput(attrs={'placeholder': '请输入开支描述...'}),
+            'description': forms.TextInput(attrs={'placeholder': '请输入开支描述（可选）...'}),
             'amount': forms.NumberInput(attrs={'placeholder': '0.00', 'step': '0.01'}),
         }
 
@@ -21,6 +21,8 @@ class ExpenseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # 在初始化时，将所有分类（包括一级和二级）都添加到选择列表中
         self.fields['category'].queryset = ExpenseCategory.objects.all()
+        # 描述字段为可选
+        self.fields['description'].required = False
 
 
 class CategoryForm(forms.ModelForm):

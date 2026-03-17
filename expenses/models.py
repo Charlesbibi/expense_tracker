@@ -32,7 +32,7 @@ class ExpenseCategory(models.Model):
 class Expense(models.Model):
     date = models.DateField(verbose_name='日期')
     category = models.ForeignKey(ExpenseCategory, on_delete=models.CASCADE, verbose_name='类别')
-    description = models.CharField(max_length=200, verbose_name='描述')
+    description = models.CharField(max_length=200, blank=True, default='', verbose_name='描述')
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='金额')
 
     class Meta:

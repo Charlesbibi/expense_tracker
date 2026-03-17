@@ -80,18 +80,25 @@ def delete_expense(request, pk):
 
 def visualizations(request):
     """可视化页面"""
-    # 获取年份参数，默认为当前年份
-    year = request.GET.get('year', datetime.now().year)
+    current_real_year = datetime.now().year
+
+    # 获取年份参数，默认为当前真实年份
+    year = request.GET.get('year', current_real_year)
     try:
         year = int(year)
     except ValueError:
-        year = datetime.now().year
+        year = current_real_year
 
     # 获取可视化类型参数 (primary: 一级分类, secondary: 二级分类)，默认为一级
     viz_type = request.GET.get('viz_type', 'primary')  # primary 或 secondary
 
-    # 获取所有年份用于下拉选择
-    all_years = Expense.objects.dates('date', 'year', order='DESC').distinct()
+    # 获取所有有数据的年份，并确保当前年份始终出现（即便今年还没有数据）
+    from datetime import date as _date
+    db_years = list(Expense.objects.dates('date', 'year', order='DESC').distinct())
+    db_year_ints = [d.year for d in db_years]
+    if current_real_year not in db_year_ints:
+        db_years = [_date(current_real_year, 1, 1)] + db_years
+    all_years = db_years
 
     # 1. 按月统计总开支 (与之前相同)
     monthly_data = {}

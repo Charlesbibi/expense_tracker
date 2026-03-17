@@ -152,13 +152,21 @@
                         <span class="amount-text">¥{{ expense.amount|floatformat:2 }}</span>
                     </td>
                     <td class="text-center">
-                        <form method="post" action="{% url 'expenses:expense_delete' expense.pk %}"
-                              class="d-inline" onsubmit="return confirmDelete(this)">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-icon btn-delete" title="删除">
-                                <i class="bi bi-trash3"></i>
+                        <div class="d-flex justify-content-center gap-1">
+                            <!-- 编辑按钮 -->
+                            <button type="button" class="btn btn-icon" style="background:#eef3ff; color:#4f81ff"
+                                    onclick="openEditModal({{ expense.pk }})" title="编辑">
+                                <i class="bi bi-pencil-square"></i>
                             </button>
-                        </form>
+                            <!-- 删除按钮 -->
+                            <form method="post" action="{% url 'expenses:expense_delete' expense.pk %}"
+                                  class="d-inline" onsubmit="return confirmDelete(this)">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-icon btn-delete" title="删除">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
@@ -347,6 +355,79 @@
     </div>
 </div>
 
+<!-- 编辑开支模态框 -->
+<div class="modal fade" id="editExpenseModal" tabindex="-1" aria-labelledby="editExpenseModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editExpenseModalLabel">
+                    <i class="bi bi-pencil-square me-2"></i>编辑开支
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editExpenseForm" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" id="editExpenseId" name="expense_id">
+
+                    <!-- 错误提示 -->
+                    <div id="editFormError" class="alert alert-danger d-none"></div>
+
+                    <!-- 日期 -->
+                    <div class="mb-3">
+                        <label for="edit_id_date" class="form-label">
+                            <i class="bi bi-calendar-event me-1 text-primary"></i>日期 <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" class="form-control" id="edit_id_date" name="date" required>
+                    </div>
+
+                    <!-- 类别 -->
+                    <div class="mb-3">
+                        <label for="edit_id_category" class="form-label">
+                            <i class="bi bi-tag me-1 text-primary"></i>类别 <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="edit_id_category" name="category" required>
+                            <option value="">请选择类别</option>
+                            <!-- 类别选项将通过 AJAX 动态加载 -->
+                        </select>
+                        <div id="editCategoryLoading" class="text-muted small mt-1 d-none">
+                            <i class="bi bi-arrow-repeat spin"></i> 加载类别中…
+                        </div>
+                    </div>
+
+                    <!-- 描述 -->
+                    <div class="mb-3">
+                        <label for="edit_id_description" class="form-label">
+                            <i class="bi bi-chat-left-text me-1 text-primary"></i>描述 <span class="text-muted small">（可选）</span>
+                        </label>
+                        <input type="text" class="form-control" id="edit_id_description" name="description" placeholder="请输入开支描述（可选）...">
+                    </div>
+
+                    <!-- 金额 -->
+                    <div class="mb-3">
+                        <label for="edit_id_amount" class="form-label">
+                            <i class="bi bi-currency-yen me-1 text-primary"></i>金额（元） <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control" id="edit_id_amount" name="amount"
+                                   placeholder="0.00" step="0.01" min="0.01" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>取消
+                </button>
+                <button type="button" class="btn btn-primary" id="submitEditBtn">
+                    <i class="bi bi-check-lg me-1"></i>保存修改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -408,6 +489,7 @@ function loadCategories() {
 // 页面加载时自动加载类别列表
 document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
+    loadCategoriesForEdit();  // 加载编辑模态框的类别列表
 });
 
 // 添加开支 AJAX 提交
@@ -531,6 +613,202 @@ document.querySelectorAll('.expense-row').forEach((row, i) => {
         row.style.opacity = 1;
         row.style.transform = 'translateX(0)';
     }, i * 40 + 100);
+});
+
+// ─── 编辑功能相关函数 ───────────────────────────────────────
+
+// 为编辑模态框加载类别列表
+function loadCategoriesForEdit() {
+    const categorySelect = document.getElementById('edit_id_category');
+    const loadingDiv = document.getElementById('editCategoryLoading');
+
+    // 显示加载状态
+    loadingDiv.classList.remove('d-none');
+
+    fetch('{% url "expenses:api_categories" %}', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('编辑类别API响应状态:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('编辑类别数据:', data);
+        if (data.success && data.categories) {
+            // 清空现有选项（保留第一个"请选择类别"选项）
+            const firstOption = categorySelect.options[0];
+            categorySelect.innerHTML = '';
+            categorySelect.appendChild(firstOption);
+
+            // 动态添加类别选项
+            data.categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.full_path;
+                categorySelect.appendChild(option);
+            });
+            console.log('编辑类别加载成功，共', data.categories.length, '个类别');
+        } else {
+            console.error('加载编辑类别失败:', data);
+        }
+    })
+    .catch(error => {
+        console.error('加载编辑类别出错:', error);
+    })
+    .finally(() => {
+        // 隐藏加载状态
+        loadingDiv.classList.add('d-none');
+    });
+}
+
+// 打开编辑模态框并加载数据
+function openEditModal(expenseId) {
+    // 获取对应的开支记录数据
+    const rows = document.querySelectorAll('.expense-row');
+    let targetRow = null;
+
+    rows.forEach(row => {
+        // 从删除表单的 action 属性中提取 ID
+        const deleteForm = row.querySelector('form');
+        if (deleteForm) {
+            const action = deleteForm.getAttribute('action');
+            const rowId = action.match(/delete\/(\d+)\//);
+            if (rowId && parseInt(rowId[1]) === expenseId) {
+                targetRow = row;
+            }
+        }
+    });
+
+    if (!targetRow) {
+        console.error('未找到对应的开支记录');
+        return;
+    }
+
+    // 从表格行中提取数据
+    const dateText = targetRow.querySelector('.date-badge').textContent.trim(); // 格式: 2025/03/17
+    const [year, month, day] = dateText.split('/');
+    const dateValue = `${year}-${month}-${day}`;
+
+    const categoryElement = targetRow.querySelector('.category-tag');
+    const categoryText = categoryElement.textContent.trim();
+
+    const descElement = targetRow.querySelector('.desc-cell');
+    const descValue = descElement.textContent.trim();
+
+    const amountText = targetRow.querySelector('.amount-text').textContent.trim(); // 格式: ¥123.45
+    const amountValue = amountText.replace('¥', '').trim();
+
+    // 填充表单
+    document.getElementById('editExpenseId').value = expenseId;
+    document.getElementById('edit_id_date').value = dateValue;
+    document.getElementById('edit_id_description').value = descValue;
+    document.getElementById('edit_id_amount').value = amountValue;
+
+    // 设置类别下拉框的值
+    const categorySelect = document.getElementById('edit_id_category');
+    // 需要根据类别名称匹配下拉框选项
+    for (let i = 1; i < categorySelect.options.length; i++) {
+        if (categorySelect.options[i].textContent === categoryText) {
+            categorySelect.selectedIndex = i;
+            break;
+        }
+    }
+
+    // 清除之前的错误提示
+    document.getElementById('editFormError').classList.add('d-none');
+
+    // 显示模态框
+    const modalEl = document.getElementById('editExpenseModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+// 提交编辑表单
+document.getElementById('submitEditBtn').addEventListener('click', function() {
+    const form = document.getElementById('editExpenseForm');
+    const expenseId = document.getElementById('editExpenseId').value;
+    const btn = this;
+    const errorDiv = document.getElementById('editFormError');
+
+    // 清除之前的错误
+    errorDiv.classList.add('d-none');
+
+    // 表单验证
+    const date = document.getElementById('edit_id_date').value;
+    const category = document.getElementById('edit_id_category').value;
+    const amount = document.getElementById('edit_id_amount').value;
+
+    if (!date || !category || !amount) {
+        errorDiv.textContent = '请填写所有必填字段（日期、类别、金额）。';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+
+    if (parseFloat(amount) <= 0) {
+        errorDiv.textContent = '金额必须大于零。';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+
+    // 显示加载状态
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>保存中…';
+    btn.disabled = true;
+
+    // AJAX 提交
+    fetch(`{% url "expenses:edit" 0 %}`.replace('0', expenseId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: new URLSearchParams(new FormData(form))
+    })
+    .then(response => {
+        console.log('编辑提交响应状态:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('编辑提交返回数据:', data);
+        if (data.success) {
+            // 关闭模态框
+            const modalEl = document.getElementById('editExpenseModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+
+            // 显示成功提示
+            showSuccessAlert('✅ 开支记录已成功更新！');
+
+            // 刷新页面
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            // 显示错误
+            errorDiv.textContent = data.error || '保存失败，请重试。';
+            errorDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('编辑提交错误:', error);
+        errorDiv.textContent = '网络错误，请稍后重试。';
+        errorDiv.classList.remove('d-none');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
 });
 </script>
 {% endblock %}

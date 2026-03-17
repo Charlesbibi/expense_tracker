@@ -134,6 +134,41 @@ def add_category(request):
     })
 
 
+def edit_expense(request, pk):
+    """编辑开支（支持 AJAX 和普通提交）"""
+    expense = get_object_or_404(Expense, pk=pk)
+
+    if request.method == 'POST':
+        form = ExpenseForm(request.POST, instance=expense)
+
+        # AJAX 请求
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            print(f"[DEBUG] 收到编辑 AJAX 请求: {request.POST}")
+            if form.is_valid():
+                form.save()
+                print(f"[DEBUG] 编辑成功")
+                return JsonResponse({'success': True, 'message': '开支记录已成功更新'})
+            else:
+                print(f"[DEBUG] 编辑表单验证失败: {form.errors}")
+                errors = {}
+                for field in form.errors:
+                    errors[field] = form.errors[field].as_text()
+                return JsonResponse({
+                    'success': False,
+                    'error': '表单验证失败',
+                    'errors': errors
+                })
+        else:
+            # 普通提交
+            if form.is_valid():
+                form.save()
+                return redirect('expenses:list')
+    else:
+        form = ExpenseForm(instance=expense)
+
+    return render(request, 'expenses/add.html', {'form': form, 'is_edit': True})
+
+
 def delete_expense(request, pk):
     """删除开支"""
     expense = get_object_or_404(Expense, pk=pk)

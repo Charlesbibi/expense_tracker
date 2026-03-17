@@ -330,6 +330,9 @@ body {
     border: none;
     transition: background var(--transition), color var(--transition), transform var(--transition);
 }
+.btn-icon:hover:not(.btn-delete) {
+    transform: scale(1.1);
+}
 .btn-delete {
     background: #fff0f0;
     color: var(--red);

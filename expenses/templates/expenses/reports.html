@@ -1,0 +1,434 @@
+{% extends 'base.html' %}
+
+{% block title %}统计报表 - 家庭财务{% endblock %}
+
+{% block content %}
+
+<!-- 页面标题 -->
+<div class="page-header d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="page-title mb-1">
+            <i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>统计报表
+        </h2>
+        <p class="text-muted small mb-0">
+            {% if month %}
+                {{ year }} 年 {{ month }} 月月报
+            {% else %}
+                {{ year }} 年度年报
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- 年份 & 月份筛选 -->
+    <div class="d-flex align-items-center gap-2">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <select name="year" class="form-select form-select-sm" style="width:110px" onchange="this.form.submit()">
+                {% for y in all_years %}
+                    <option value="{{ y.year }}" {% if year == y.year %}selected{% endif %}>{{ y.year }}年</option>
+                {% endfor %}
+            </select>
+            <select name="month" class="form-select form-select-sm" style="width:110px" onchange="this.form.submit()">
+                <option value="">全年</option>
+                <option value="1" {% if month == 1 %}selected{% endif %}>1 月</option>
+                <option value="2" {% if month == 2 %}selected{% endif %}>2 月</option>
+                <option value="3" {% if month == 3 %}selected{% endif %}>3 月</option>
+                <option value="4" {% if month == 4 %}selected{% endif %}>4 月</option>
+                <option value="5" {% if month == 5 %}selected{% endif %}>5 月</option>
+                <option value="6" {% if month == 6 %}selected{% endif %}>6 月</option>
+                <option value="7" {% if month == 7 %}selected{% endif %}>7 月</option>
+                <option value="8" {% if month == 8 %}selected{% endif %}>8 月</option>
+                <option value="9" {% if month == 9 %}selected{% endif %}>9 月</option>
+                <option value="10" {% if month == 10 %}selected{% endif %}>10 月</option>
+                <option value="11" {% if month == 11 %}selected{% endif %}>11 月</option>
+                <option value="12" {% if month == 12 %}selected{% endif %}>12 月</option>
+            </select>
+        </form>
+    </div>
+</div>
+
+<!-- 核心指标卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--blue">
+            <div class="stat-icon"><i class="bi bi-currency-yen"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">¥{{ yearly_total|floatformat:2 }}</div>
+                <div class="stat-label">年度总支出</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--purple">
+            <div class="stat-icon"><i class="bi bi-calendar4-week"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ yearly_count }}</div>
+                <div class="stat-label">总笔数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--green">
+            <div class="stat-icon"><i class="bi bi-bar-chart-line"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">¥{{ daily_avg|floatformat:2 }}</div>
+                <div class="stat-label">日均消费</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card--orange">
+            <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">¥{{ weekly_avg|floatformat:2 }}</div>
+                <div class="stat-label">周均消费</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 月度详情卡片（如果选中了月份）-->
+{% if month %}
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="stat-card stat-card--purple" style="background: linear-gradient(135deg, #faf5ff 0%, #f0e8ff 100%); border: 1px solid #d8b4fe;">
+            <div class="stat-icon" style="background: #f0e8ff; color: #a855f7;"><i class="bi bi-calendar-month"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">¥{{ monthly_total|floatformat:2 }}</div>
+                <div class="stat-label">{{ month }} 月总支出</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="stat-card stat-card--orange" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fdba74;">
+            <div class="stat-icon" style="background: #ffedd5; color: #f97316;"><i class="bi bi-journal-check"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ monthly_count }}</div>
+                <div class="stat-label">{{ month }} 月笔数</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 同比环比分析 -->
+<div class="content-card mb-4">
+    <div class="filter-bar__label">
+        <i class="bi bi-graph-up-arrow me-1"></i>同比环比分析
+    </div>
+    <div class="card-body px-4 py-3">
+        <div class="row g-4">
+            <!-- 同比分析 -->
+            <div class="col-md-6">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small">同比（vs {{ year|add:"-1" }}年）</span>
+                    <span class="badge {% if yoy_growth > 0 %}bg-danger{% elif yoy_growth < 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                        {% if yoy_growth > 0 %}<i class="bi bi-arrow-up-right me-1"></i>
+                        {% elif yoy_growth < 0 %}<i class="bi bi-arrow-down-right me-1"></i>
+                        {% endif %}
+                        {{ yoy_growth|floatformat:2 }}%
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-end">
+                    <div>
+                        <div class="text-muted small mb-1">今年</div>
+                        <div class="fs-5 fw-bold">¥{{ yearly_total|floatformat:2 }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small mb-1">去年</div>
+                        <div class="fs-5 text-muted">¥{{ last_year_total|floatformat:2 }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 环比分析 -->
+            <div class="col-md-6">
+                {% if mom_growth is not None %}
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small">
+                            {% if month == 1 %}环比（vs {{ year|add:"-1" }}年12月）
+                            {% else %}环比（vs {{ month|add:"-1" }}月）
+                            {% endif %}
+                        </span>
+                        <span class="badge {% if mom_growth > 0 %}bg-danger{% elif mom_growth < 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if mom_growth > 0 %}<i class="bi bi-arrow-up-right me-1"></i>
+                            {% elif mom_growth < 0 %}<i class="bi bi-arrow-down-right me-1"></i>
+                            {% endif %}
+                            {{ mom_growth|floatformat:2 }}%
+                        </span>
+                    </div>
+                    <div class="fs-5 fw-bold text-center">
+                        {% if month %}{{ month }} 月支出: ¥{{ monthly_total|floatformat:2 }}{% else %}--{% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-muted text-center py-4">
+                        <i class="bi bi-info-circle fs-3 d-block mb-2 opacity-25"></i>
+                        请选择月份查看环比分析
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 月度趋势图 -->
+<div class="content-card mb-4">
+    <div class="filter-bar__label">
+        <i class="bi bi-bar-chart-fill me-1"></i>月度支出趋势
+    </div>
+    <div class="chart-card__body px-4">
+        <canvas id="monthlyTrendChart" style="max-height: 300px;"></canvas>
+    </div>
+</div>
+
+<!-- 高消费日期 -->
+<div class="content-card mb-4">
+    <div class="filter-bar__label">
+        <i class="bi bi-calendar-event-fill me-1"></i>高消费日期 TOP5
+    </div>
+    <div class="px-4 pb-4">
+        {% if daily_totals %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center" width="25%">排名</th>
+                            <th class="text-center" width="35%">日期</th>
+                            <th class="text-center" width="20%">笔数</th>
+                            <th class="text-end" width="20%">总金额</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in daily_totals %}
+                        <tr>
+                            <td class="text-center">
+                                {% if forloop.counter <= 3 %}
+                                <span class="rank-badge" style="
+                                    {% if forloop.counter == 1 %}background: #ffd700;
+                                    {% elif forloop.counter == 2 %}background: #c0c0c0;
+                                    {% elif forloop.counter == 3 %}background: #cd7f32;
+                                    {% endif %}
+                                ">{{ forloop.counter }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ forloop.counter }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="date-badge">{{ item.date|date:"Y/m/d" }}</span>
+                            </td>
+                            <td class="text-center text-muted">{{ item.daily_count }}</td>
+                            <td class="text-end fw-bold" style="color: #dc2626;">
+                                ¥{{ item.daily_total|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted text-center py-4">
+                <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>暂无数据
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 类别排行榜 -->
+<div class="content-card mb-4">
+    <div class="filter-bar__label">
+        <i class="bi bi-trophy-fill me-1"></i>{{ year }} 年度消费类别排行
+    </div>
+    <div class="px-4 pb-4">
+        {% if category_ranking %}
+            <div id="categoryRankingList" class="mt-3"></div>
+        {% else %}
+            <p class="text-muted text-center py-4">
+                <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>暂无数据
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 每日消费热力图 -->
+<div class="content-card mb-4">
+    <div class="filter-bar__label">
+        <i class="bi bi-grid-fill me-1"></i>每日消费热力图
+    </div>
+    <div class="px-4 pb-4">
+        <div id="heatmapContainer" class="d-flex flex-wrap gap-1"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ─── 数据 ─────────────────────────────────────────────
+const monthlyTrendData = {{ monthly_trend_data|safe }};
+const categoryRankingData = [
+    {% for item in category_ranking %}
+    {
+        name: "{{ item.category__parent__name|default:'' }}{% if item.category__parent__name %} > {% endif %}{{ item.category__name }}",
+        total: {{ item.total|floatformat }},
+        count: {{ item.count }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+const heatmapData = {{ daily_heatmap_data|safe }};
+
+const PALETTE = [
+    '#4f81ff','#f6753a','#22c55e','#a855f7','#eab308',
+    '#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1'
+];
+
+// ─── 月度趋势图 ────────────────────────────────────
+const ctx = document.getElementById('monthlyTrendChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+            datasets: [{
+                label: '月支出(元)',
+                data: monthlyTrendData,
+                borderColor: '#4f81ff',
+                backgroundColor: 'rgba(79, 129, 255, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#4f81ff',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ¥${ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: {
+                        callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v)
+                    }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ─── 类别排行榜 ───────────────────────────────
+const rankingEl = document.getElementById('categoryRankingList');
+if (rankingEl && categoryRankingData.length > 0) {
+    const total = categoryRankingData.reduce((a,b) => a + b.total, 0);
+    const sorted = categoryRankingData.sort((a,b) => b.total - a.total);
+
+    rankingEl.innerHTML = sorted.map((item, i) => {
+        const pct = total > 0 ? (item.total / total * 100).toFixed(1) : 0;
+        const color = PALETTE[i % PALETTE.length];
+        return `
+        <div class="ranking-item mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="rank-badge" style="background:${color}">${i+1}</span>
+                    <span class="fw-medium">${item.name}</span>
+                    <span class="text-muted small">${item.count}笔</span>
+                </div>
+                <div class="text-end">
+                    <span class="fw-bold" style="color:${color}">¥${item.total.toLocaleString('zh-CN',{minimumFractionDigits:2})}</span>
+                    <span class="text-muted small ms-2">${pct}%</span>
+                </div>
+            </div>
+            <div class="progress ranking-progress" style="height:6px">
+                <div class="progress-bar" role="progressbar"
+                     style="width:${pct}%; background:${color}; border-radius:4px;"
+                     data-width="${pct}"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // 进度条动画
+    setTimeout(() => {
+        document.querySelectorAll('.ranking-progress .progress-bar').forEach(bar => {
+            bar.style.transition = 'width .8s cubic-bezier(.4,0,.2,1)';
+        });
+    }, 100);
+}
+
+// ─── 热力图 ───────────────────────────────────
+const heatmapEl = document.getElementById('heatmapContainer');
+if (heatmapEl) {
+    // 获取最大值用于颜色映射
+    const maxValue = Math.max(...Object.values(heatmapData));
+    const avgValue = Object.values(heatmapData).reduce((a,b) => a+b, 0) / Object.keys(heatmapData).length;
+
+    heatmapEl.innerHTML = Object.entries(heatmapData).map(([date, value]) => {
+        // 根据消费金额计算颜色
+        let bgColor, textColor;
+        if (value === 0) {
+            bgColor = '#f8fafc';
+            textColor = '#94a3b8';
+        } else if (value < avgValue * 0.5) {
+            bgColor = '#dcfce7';
+            textColor = '#166534';
+        } else if (value < avgValue) {
+            bgColor = '#bbf7d0';
+            textColor = '#15803d';
+        } else if (value < avgValue * 1.5) {
+            bgColor = '#fef3c7';
+            textColor = '#854d0e';
+        } else {
+            bgColor = '#fecaca';
+            textColor = '#991b1b';
+        }
+
+        const [month, day] = date.split('-');
+        return `
+            <div class="heatmap-cell" style="
+                background: ${bgColor};
+                color: ${textColor};
+                width: calc(100% / 7 - 4px);
+                aspect-ratio: 1;
+                border-radius: 4px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                cursor: pointer;
+                transition: transform 0.2s;
+            "
+            title="${month}月${day}日: ¥${value.toFixed(2)}"
+            >
+                <div style="font-weight: 600;">${day}</div>
+                ${value > 0 ? `<div style="font-size: 8px;">${value.toFixed(0)}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    // 添加悬停效果
+    document.querySelectorAll('.heatmap-cell').forEach(cell => {
+        cell.addEventListener('mouseenter', () => {
+            cell.style.transform = 'scale(1.1)';
+            cell.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            cell.style.zIndex = '10';
+        });
+        cell.addEventListener('mouseleave', () => {
+            cell.style.transform = 'scale(1)';
+            cell.style.boxShadow = 'none';
+            cell.style.zIndex = '1';
+        });
+    });
+}
+</script>
+{% endblock %}

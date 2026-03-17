@@ -118,8 +118,8 @@
         <table class="expense-table table mb-0">
             <thead>
                 <tr>
-                    <th style="width:120px"><i class="bi bi-calendar3 me-1 text-muted"></i>日期</th>
-                    <th><i class="bi bi-tag me-1 text-muted"></i>类别</th>
+                    <th class="text-center" style="width:120px"><i class="bi bi-calendar3 me-1 text-muted"></i>日期</th>
+                    <th class="text-center"><i class="bi bi-tag me-1 text-muted"></i>类别</th>
                     <th><i class="bi bi-chat-text me-1 text-muted"></i>描述</th>
                     <th class="text-end" style="width:130px"><i class="bi bi-currency-yen me-1 text-muted"></i>金额</th>
                     <th class="text-center" style="width:80px">操作</th>
@@ -128,10 +128,10 @@
             <tbody>
                 {% for expense in expenses %}
                 <tr class="expense-row" style="animation-delay: {{ forloop.counter0 }}00ms">
-                    <td>
+                    <td class="text-center">
                         <span class="date-badge">{{ expense.date|date:"Y/m/d" }}</span>
                     </td>
-                    <td>
+                    <td class="text-center">
                         {% with cat_path=expense.category.get_full_path %}
                             {% if ">" in cat_path %}
                                 <span class="category-tag parent">{{ cat_path|truncatechars_html:20 }}</span>

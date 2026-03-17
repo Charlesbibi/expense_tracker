@@ -38,7 +38,7 @@
         <div class="stat-card stat-card--purple">
             <div class="stat-icon"><i class="bi bi-list-ul"></i></div>
             <div class="stat-body">
-                <div class="stat-value">{{ expenses|length }}</div>
+                <div class="stat-value">{{ total_count }}</div>
                 <div class="stat-label">笔数</div>
             </div>
         </div>
@@ -48,7 +48,7 @@
             <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
             <div class="stat-body">
                 <div class="stat-value">
-                    {% if expenses %}{{ expenses.0.date|date:"m/d" }}{% else %}--{% endif %}
+                    {% if latest_date %}{{ latest_date|date:"m/d" }}{% else %}--{% endif %}
                 </div>
                 <div class="stat-label">最近记录</div>
             </div>
@@ -59,7 +59,7 @@
             <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
             <div class="stat-body">
                 <div class="stat-value">
-                    {% if expenses %}¥{% widthratio total_expense expenses|length 1 %}{% else %}--{% endif %}
+                    {% if total_count %}¥{% widthratio total_expense total_count 1 %}{% else %}--{% endif %}
                 </div>
                 <div class="stat-label">笔均支出</div>
             </div>
@@ -166,15 +166,72 @@
     </div>
 
     <!-- 底部汇总 -->
-    {% if expenses %}
+    {% if total_count %}
     <div class="table-footer d-flex align-items-center justify-content-between px-4 py-3">
-        <span class="text-muted small">共 <strong>{{ expenses|length }}</strong> 笔记录</span>
+        <span class="text-muted small">
+            共 <strong>{{ total_count }}</strong> 笔记录，当前第 <strong>{{ page_obj.number }}</strong> / <strong>{{ page_obj.paginator.num_pages }}</strong> 页
+        </span>
         <span class="total-summary">
             合计：<strong class="text-primary fs-5">¥{{ total_expense|floatformat:2 }}</strong>
         </span>
     </div>
     {% endif %}
 </div>
+
+<!-- 分页导航 -->
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="d-flex justify-content-center mt-4" aria-label="分页">
+    <ul class="pagination pagination-modern mb-0">
+
+        <!-- 上一页 -->
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?{{ filter_query_string }}{% if filter_query_string %}&{% endif %}page={{ page_obj.previous_page_number }}"
+               aria-label="上一页">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link" aria-hidden="true"><i class="bi bi-chevron-left"></i></span>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?{{ filter_query_string }}{% if filter_query_string %}&{% endif %}page={{ num }}">{{ num }}</a>
+                </li>
+            {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                <li class="page-item">
+                    <a class="page-link" href="?{{ filter_query_string }}{% if filter_query_string %}&{% endif %}page={{ num }}">{{ num }}</a>
+                </li>
+            {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+
+        <!-- 下一页 -->
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?{{ filter_query_string }}{% if filter_query_string %}&{% endif %}page={{ page_obj.next_page_number }}"
+               aria-label="下一页">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+        </li>
+        {% endif %}
+
+    </ul>
+</nav>
+{% endif %}
 
 {% endblock %}
 

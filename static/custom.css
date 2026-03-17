@@ -522,6 +522,46 @@ body {
 /* ── 分类树 ───────────────────────────────────────────────── */
 .category-tree { display: flex; flex-direction: column; gap: 10px; }
 
+/* ── 分页导航 ─────────────────────────────────────────────── */
+.pagination-modern {
+    gap: 4px;
+}
+.pagination-modern .page-link {
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm) !important;
+    color: var(--primary);
+    font-size: .85rem;
+    font-weight: 500;
+    padding: 6px 14px;
+    min-width: 38px;
+    text-align: center;
+    transition: all var(--transition);
+    background: var(--surface);
+    line-height: 1.4;
+}
+.pagination-modern .page-link:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(79,129,255,.15);
+}
+.pagination-modern .page-item.active .page-link {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(79,129,255,.3);
+}
+.pagination-modern .page-item.disabled .page-link {
+    color: var(--text-muted);
+    background: #f8faff;
+    border-color: var(--border);
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+}
+
+
 .cat-node--primary {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);

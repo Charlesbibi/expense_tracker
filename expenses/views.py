@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.db.models import Sum, F
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import datetime
 from calendar import monthrange
 from .models import Expense, ExpenseCategory
@@ -13,26 +14,48 @@ def home(request):
 
 
 def expense_list(request):
-    """开支列表页面"""
-    expenses = Expense.objects.all()
-    total_expense = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
+    """开支列表页面（带分页）"""
+    expenses_qs = Expense.objects.select_related('category', 'category__parent').all()
 
-    # 按月筛选
+    # 按年/月筛选
     year = request.GET.get('year', '')
     month = request.GET.get('month', '')
-    if year and month:
-        expenses = expenses.filter(date__year=year, date__month=month)
-        total_expense = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
+    if year:
+        expenses_qs = expenses_qs.filter(date__year=year)
+    if month:
+        expenses_qs = expenses_qs.filter(date__month=month)
+
+    # 当前筛选范围内的总金额 & 总笔数（用于统计卡片，不受分页影响）
+    total_expense = expenses_qs.aggregate(Sum('amount'))['amount__sum'] or 0
+    total_count   = expenses_qs.count()
+    latest_date   = expenses_qs.values_list('date', flat=True).first()   # 已按 -date 排序
+
+    # 分页：每页 15 条
+    paginator   = Paginator(expenses_qs, 15)
+    page_number = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page_number)
+    except (PageNotAnInteger, EmptyPage):
+        page_obj = paginator.page(1)
 
     # 获取所有年份用于下拉选择
     all_years = Expense.objects.dates('date', 'year', order='DESC').distinct()
 
+    # 构建分页时保留筛选参数的查询字符串（去掉 page 参数）
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    filter_query_string = query_params.urlencode()
+
     context = {
-        'expenses': expenses,
-        'total_expense': total_expense,
-        'current_year': int(year) if year else None,
-        'current_month': int(month) if month else None,
-        'all_years': all_years,
+        'page_obj':            page_obj,
+        'expenses':            page_obj.object_list,   # 兼容模板原有变量名
+        'total_expense':       total_expense,
+        'total_count':         total_count,
+        'latest_date':         latest_date,
+        'current_year':        int(year) if year else None,
+        'current_month':       int(month) if month else None,
+        'all_years':           all_years,
+        'filter_query_string': filter_query_string,
     }
     return render(request, 'expenses/list.html', context)
 

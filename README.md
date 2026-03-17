@@ -33,6 +33,9 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
+#### 3.1. sql建表造数据
+先执行[init_datastruct.sql](static/sql/init_datastruct.sql)建表格，后执行[test_data.sql](static/sql/test_data.sql)造数据
+
 ### 4. 启动开发服务器
 ```bash
 conda activate homefinance

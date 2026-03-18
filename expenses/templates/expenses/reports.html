@@ -150,14 +150,12 @@
 
             <!-- 环比分析 -->
             <div class="col-md-6">
-                {% if mom_growth is not None %}
+                {% if mom_growth is not None and last_compare_year %}
                     <div class="analysis-box">
                         <div class="analysis-box__header">
                             <span class="analysis-box__label">环比</span>
                             <span class="analysis-box__comparison">
-                                {% if month == 1 %}vs {{ year|add:"-1" }}年12月
-                                {% else %}vs {{ month|add:"-1" }}月
-                                {% endif %}
+                                vs {{ last_compare_year }}年{{ last_compare_month }}月
                             </span>
                         </div>
                         <div class="analysis-box__content">

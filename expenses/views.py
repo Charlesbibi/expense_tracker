@@ -323,21 +323,48 @@ def reports(request):
     else:
         yoy_growth = 0 if yearly_total == 0 else 100
 
+
     # 环比分析（与上个月对比，需要指定月份）
+    # 如果上个月没有支出，继续向前查找，直到找到有支出的月份
     mom_growth = None
-    if month and month > 1:
-        last_month_total = expenses_qs.filter(
-            date__year=year, date__month=month - 1
-        ).aggregate(Sum('amount'))['amount__sum'] or 0
-        if last_month_total > 0:
+    last_compare_year = None
+    last_compare_month = None
+    if month:
+        # 开始查找的年和月
+        compare_year = year
+        compare_month = month - 1
+
+        # 如果是1月份，从去年12月开始
+        if compare_month == 0:
+            compare_year = year - 1
+            compare_month = 12
+
+        # 递归向前查找有支出的月份，最多向前查找12个月
+        last_month_total = None
+        last_compare_month = None
+        last_compare_year = None
+
+        for _ in range(12):  # 最多向前查找12个月
+            # 检查这个月份是否有支出
+            monthly_check = expenses_qs.filter(
+                date__year=compare_year, date__month=compare_month
+            ).aggregate(Sum('amount'))['amount__sum'] or 0
+
+            if monthly_check > 0:
+                last_month_total = monthly_check
+                last_compare_month = compare_month
+                last_compare_year = compare_year
+                break
+
+            # 继续向前查找
+            compare_month -= 1
+            if compare_month == 0:
+                compare_year -= 1
+                compare_month = 12
+
+        # 如果找到有支出的月份，计算环比
+        if last_month_total is not None and last_month_total > 0:
             mom_growth = ((monthly_total - last_month_total) / last_month_total) * 100
-    elif month == 1:
-        # 1月份与去年12月对比
-        last_year_dec_total = expenses_qs.filter(
-            date__year=year - 1, date__month=12
-        ).aggregate(Sum('amount'))['amount__sum'] or 0
-        if last_year_dec_total > 0:
-            mom_growth = ((monthly_total - last_year_dec_total) / last_year_dec_total) * 100
 
     # 高消费日期标注（单日消费最高的前5天）
     daily_totals = expenses_qs.filter(date__year=year).values('date').annotate(
@@ -401,6 +428,8 @@ def reports(request):
         'last_year_total': last_year_total,
         'yoy_growth': yoy_growth,
         'mom_growth': mom_growth,
+        'last_compare_year': last_compare_year,
+        'last_compare_month': last_compare_month,
         'daily_totals': list(daily_totals),
         'daily_heatmap_data': daily_heatmap_data,
         'monthly_trend_data': monthly_trend_data,

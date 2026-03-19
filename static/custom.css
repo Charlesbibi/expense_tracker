@@ -549,6 +549,11 @@ body {
     background: #fafbff;
 }
 
+/* 摘要指标卡片（3列含波动率） */
+.trend-summary--3col {
+    grid-template-columns: repeat(3, 1fr);
+}
+
 /* 摘要指标卡片（2列） */
 .trend-summary {
     display: grid;
@@ -695,7 +700,8 @@ body {
 
 /* 响应式 */
 @media (max-width: 576px) {
-    .trend-summary { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .trend-summary, .trend-summary--3col { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .trend-summary--3col .trend-summary-item:last-child { grid-column: 1 / -1; }
     .trend-summary-item { padding: 12px 8px; }
     .trend-summary-item .ts-value { font-size: .95rem; }
     .trend-modal-body { padding: 18px; }

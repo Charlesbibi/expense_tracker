@@ -370,19 +370,15 @@
                 <button type="button" class="trend-close" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
             </div>
             <div class="trend-modal-body">
-                <!-- 摘要指标 -->
+                <!-- 摘要指标（2列） -->
                 <div class="trend-summary">
                     <div class="trend-summary-item">
-                        <div class="ts-label">年度累计</div>
-                        <div class="ts-value" id="trendTotal">--</div>
-                    </div>
-                    <div class="trend-summary-item">
-                        <div class="ts-label">最高月份</div>
+                        <div class="ts-label"><i class="bi bi-trophy-fill me-1"></i>最高月份</div>
                         <div class="ts-value" id="trendMax">--</div>
                     </div>
                     <div class="trend-summary-item">
-                        <div class="ts-label">最近环比</div>
-                        <div class="ts-value" id="trendLastMom">--</div>
+                        <div class="ts-label"><i class="bi bi-calculator me-1"></i>月均支出</div>
+                        <div class="ts-value" id="trendAvg">--</div>
                     </div>
                 </div>
                 <!-- 柱状图 -->
@@ -392,8 +388,16 @@
                 <!-- 环比列表 -->
                 <div class="trend-mom-card">
                     <div class="trend-mom-title">
-                        <i class="bi bi-arrow-left-right"></i>各月环比明细
-                        <span style="font-size:.75rem;font-weight:400;color:var(--text-muted);margin-left:auto">与上一个有记录月份对比</span>
+                        <i class="bi bi-arrow-left-right"></i>各月明细
+                        <span style="font-size:.75rem;font-weight:400;color:var(--text-muted);margin-left:auto">与上一个有记录月份环比</span>
+                    </div>
+                    <!-- 表头 -->
+                    <div class="trend-mom-head">
+                        <span style="width:36px;flex-shrink:0"></span>
+                        <span class="trend-mom-head-bar">支出分布</span>
+                        <span class="trend-mom-head-amount">金额</span>
+                        <span class="trend-mom-head-count">笔数</span>
+                        <span class="trend-mom-head-change">环比</span>
                     </div>
                     <div id="momList"></div>
                 </div>
@@ -482,6 +486,7 @@
 <script>
 /* ─── 月度趋势数据 ─── */
 const monthlyBarData = {{ monthly_bar_data }};
+const monthlyCountData = {{ monthly_count_data }};
 const momData        = {{ mom_data }};
 const trendYear      = {{ trend_year }};
 
@@ -493,11 +498,17 @@ document.getElementById('monthlyTrendModal').addEventListener('shown.bs.modal', 
     const ctx = document.getElementById('monthlyBarChart');
     if (trendChartInstance) { trendChartInstance.destroy(); }
 
-    // 找最大值用于百分比计算
+    // 计算统计值
+    const activeMonths = monthlyBarData.filter(v => v > 0);
     const maxVal = Math.max(...monthlyBarData, 1);
-
-    // 柱状图颜色：每根柱子用渐变色，最大值高亮为紫色
+    const avgVal = activeMonths.length > 0 ? activeMonths.reduce((a, b) => a + b, 0) / activeMonths.length : 0;
     const maxIdx = monthlyBarData.indexOf(maxVal);
+
+    // 摘要
+    document.getElementById('trendMax').textContent = `${maxIdx + 1}月 · ¥${maxVal.toLocaleString('zh-CN', {minimumFractionDigits: 0})}`;
+    document.getElementById('trendAvg').textContent = '¥' + avgVal.toLocaleString('zh-CN', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+
+    // 柱状图颜色
     const barColors = monthlyBarData.map((v, i) => {
         if (v === 0) return '#e9ecf5';
         if (i === maxIdx) return 'rgba(168, 85, 247, 0.85)';
@@ -508,6 +519,43 @@ document.getElementById('monthlyTrendModal').addEventListener('shown.bs.modal', 
         if (i === maxIdx) return '#a855f7';
         return '#4f81ff';
     });
+
+    // 均值线插件
+    const avgLinePlugin = {
+        id: 'avgLine',
+        afterDraw(chart) {
+            if (avgVal <= 0) return;
+            const yAxis = chart.scales.y;
+            const xAxis = chart.scales.x;
+            const yPixel = yAxis.getPixelForValue(avgVal);
+            const ctx2 = chart.ctx;
+            ctx2.save();
+            ctx2.setLineDash([6, 4]);
+            ctx2.strokeStyle = '#f59e0b';
+            ctx2.lineWidth = 2;
+            ctx2.beginPath();
+            ctx2.moveTo(xAxis.left, yPixel);
+            ctx2.lineTo(xAxis.right, yPixel);
+            ctx2.stroke();
+            // 标签
+            ctx2.setLineDash([]);
+            ctx2.fillStyle = '#fff';
+            ctx2.strokeStyle = '#f59e0b';
+            ctx2.lineWidth = 1.5;
+            const label = '均值 ¥' + avgVal.toLocaleString('zh-CN', {maximumFractionDigits: 0});
+            ctx2.font = '600 11px Inter, sans-serif';
+            const tw = ctx2.measureText(label).width + 12;
+            const lx = xAxis.right - tw - 4;
+            ctx2.beginPath();
+            ctx2.roundRect(lx, yPixel - 10, tw, 20, 4);
+            ctx2.fill();
+            ctx2.stroke();
+            ctx2.fillStyle = '#f59e0b';
+            ctx2.textBaseline = 'middle';
+            ctx2.fillText(label, lx + 6, yPixel);
+            ctx2.restore();
+        }
+    };
 
     trendChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -536,13 +584,18 @@ document.getElementById('monthlyTrendModal').addEventListener('shown.bs.modal', 
                     titleFont: { weight: '700', size: 13 },
                     bodyFont: { size: 12 },
                     callbacks: {
+                        title: function(items) {
+                            const i = items[0].dataIndex;
+                            const cnt = monthlyCountData[i];
+                            return `${trendYear}年 ${i+1}月` + (cnt > 0 ? ` · ${cnt}笔` : '');
+                        },
                         label: ctx => ` 支出  ¥${ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`,
                         afterLabel: function(ctx) {
                             const m = momData[ctx.dataIndex];
                             if (m === null || m === undefined) return '';
                             const arrow = m > 0 ? '▲' : m < 0 ? '▼' : '—';
-                            const clr = m > 0 ? '支出增加' : m < 0 ? '支出减少' : '持平';
-                            return ` 环比 ${arrow} ${Math.abs(m).toFixed(1)}%（${clr}）`;
+                            const tag = m > 0 ? '增加' : m < 0 ? '减少' : '持平';
+                            return ` 环比 ${arrow} ${Math.abs(m).toFixed(1)}%（${tag}）`;
                         }
                     }
                 }
@@ -556,41 +609,12 @@ document.getElementById('monthlyTrendModal').addEventListener('shown.bs.modal', 
                 },
                 x: { grid: { display: false }, ticks: { font: { size: 12, weight: '600' }, color: '#64748b' }, border: { display: false } }
             }
-        }
+        },
+        plugins: [avgLinePlugin]
     });
 
-    // 渲染摘要指标
-    renderTrendSummary(maxVal, maxIdx);
-    // 渲染环比列表
     renderMomList(maxVal);
 });
-
-function renderTrendSummary(maxVal, maxIdx) {
-    // 年度累计
-    const total = monthlyBarData.reduce((a, b) => a + b, 0);
-    document.getElementById('trendTotal').textContent = '¥' + total.toLocaleString('zh-CN', {minimumFractionDigits: 0});
-
-    // 最高月份
-    document.getElementById('trendMax').textContent = `${maxIdx + 1}月 · ¥${maxVal.toLocaleString('zh-CN', {minimumFractionDigits: 0})}`;
-
-    // 最近环比：找最近一个有环比数据的月份（倒序）
-    let lastMom = null, lastMonth = null;
-    for (let i = 11; i >= 0; i--) {
-        if (momData[i] !== null && momData[i] !== undefined) {
-            lastMom = momData[i];
-            lastMonth = i + 1;
-            break;
-        }
-    }
-    const el = document.getElementById('trendLastMom');
-    if (lastMom !== null) {
-        const arrow = lastMom > 0 ? '↑' : lastMom < 0 ? '↓' : '—';
-        el.textContent = `${lastMonth}月 ${arrow}${Math.abs(lastMom).toFixed(1)}%`;
-        el.className = 'ts-value ' + (lastMom > 0 ? 'text-up' : lastMom < 0 ? 'text-down' : '');
-    } else {
-        el.textContent = '暂无数据';
-    }
-}
 
 function renderMomList(maxVal) {
     const el = document.getElementById('momList');
@@ -598,6 +622,7 @@ function renderMomList(maxVal) {
     let html = '';
     for (let i = 0; i < 12; i++) {
         const val = monthlyBarData[i];
+        const cnt = monthlyCountData[i];
         const m   = momData[i];
         if (val === 0 && m === null) continue;
         const pct = maxVal > 0 ? Math.min((val / maxVal) * 100, 100) : 0;
@@ -613,12 +638,12 @@ function renderMomList(maxVal) {
                 <div class="trend-mom-bar ${barClass}" style="width:0%" data-width="${pct}%"></div>
             </div>
             <span class="trend-mom-amount">¥${val.toLocaleString('zh-CN',{minimumFractionDigits:0,maximumFractionDigits:2})}</span>
+            <span class="trend-mom-count">${cnt > 0 ? cnt + '笔' : '—'}</span>
             <span class="trend-mom-change">${mStr}</span>
         </div>`;
     }
     el.innerHTML = html || '<p style="text-align:center;color:var(--text-muted);padding:16px 0">暂无数据</p>';
 
-    // 进度条入场动画
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             el.querySelectorAll('.trend-mom-bar').forEach(bar => {

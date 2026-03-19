@@ -70,11 +70,14 @@ def expense_list(request):
     trend_year = int(year) if year else datetime.now().year
     all_qs = Expense.objects.all()
     monthly_bar_data = []
+    monthly_count_data = []
     for m in range(1, 13):
         mt = all_qs.filter(date__year=trend_year, date__month=m).aggregate(
             Sum('amount')
         )['amount__sum'] or 0
         monthly_bar_data.append(float(mt))
+        mc = all_qs.filter(date__year=trend_year, date__month=m).count()
+        monthly_count_data.append(mc)
 
     # 环比：每月与上月对比
     mom_data = []  # 每月环比增长率（%），无上月数据则为 None
@@ -114,6 +117,7 @@ def expense_list(request):
         'form':                form,
         'trend_year':          trend_year,
         'monthly_bar_data':    _json.dumps(monthly_bar_data),
+        'monthly_count_data':  _json.dumps(monthly_count_data),
         'mom_data':            _json.dumps(mom_data),
     }
     return render(request, 'expenses/list.html', context)

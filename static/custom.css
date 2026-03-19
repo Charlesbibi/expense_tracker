@@ -549,17 +549,17 @@ body {
     background: #fafbff;
 }
 
-/* 摘要指标卡片 */
+/* 摘要指标卡片（2列） */
 .trend-summary {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 14px;
     margin-bottom: 24px;
 }
 .trend-summary-item {
     background: #fff;
     border-radius: 14px;
-    padding: 16px;
+    padding: 16px 20px;
     text-align: center;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     border: 1px solid #f0f0ff;
@@ -575,13 +575,12 @@ body {
     margin-bottom: 6px;
     font-weight: 500;
 }
+.trend-summary-item .ts-label i { color: #a855f7; }
 .trend-summary-item .ts-value {
     font-size: 1.15rem;
     font-weight: 700;
     color: var(--text);
 }
-.trend-summary-item .ts-value.text-up { color: #ef4444; }
-.trend-summary-item .ts-value.text-down { color: #22c55e; }
 
 /* 图表容器 */
 .trend-chart-wrap {
@@ -608,17 +607,35 @@ body {
     font-size: .9rem;
     font-weight: 700;
     color: var(--text);
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 .trend-mom-title i { color: #a855f7; }
+/* 表头 */
+.trend-mom-head {
+    display: flex;
+    align-items: center;
+    padding: 0 0 8px;
+    border-bottom: 1px solid #eeeef5;
+    margin-bottom: 4px;
+    gap: 14px;
+    font-size: .72rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+.trend-mom-head-bar { flex: 1; }
+.trend-mom-head-amount { min-width: 90px; text-align: right; }
+.trend-mom-head-count { min-width: 44px; text-align: center; }
+.trend-mom-head-change { min-width: 82px; text-align: right; }
 .trend-mom-row {
     display: flex;
     align-items: center;
     padding: 10px 0;
-    border-bottom: 1px solid #f5f5fa;
+    border-bottom: 1px solid #f8f8fc;
     gap: 14px;
 }
 .trend-mom-row:last-child { border-bottom: none; }
@@ -657,6 +674,14 @@ body {
     color: var(--text);
     flex-shrink: 0;
 }
+.trend-mom-count {
+    min-width: 44px;
+    text-align: center;
+    font-size: .78rem;
+    color: #94a3b8;
+    font-weight: 500;
+    flex-shrink: 0;
+}
 .trend-mom-change {
     min-width: 82px;
     text-align: right;
@@ -664,9 +689,9 @@ body {
     font-weight: 600;
     flex-shrink: 0;
 }
-.trend-mom-change.up { color: #ef4444; }
-.trend-mom-change.down { color: #22c55e; }
-.trend-mom-change.neutral { color: #94a3b8; }
+.trend-mom-change .up { color: #ef4444; }
+.trend-mom-change .down { color: #22c55e; }
+.trend-mom-change .neutral { color: #94a3b8; }
 
 /* 响应式 */
 @media (max-width: 576px) {

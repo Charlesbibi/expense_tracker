@@ -19,13 +19,13 @@
         </p>
     </div>
     <div class="d-flex gap-3">
+        <button type="button" class="btn btn-action btn-action--trend" data-bs-toggle="modal" data-bs-target="#monthlyTrendModal">
+            <i class="bi bi-bar-chart-line-fill"></i>
+            <span>月度趋势</span>
+        </button>
         <a href="{% url 'expenses:add_category' %}" class="btn btn-action btn-action--category">
             <i class="bi bi-tags-fill"></i>
             <span>添加类别</span>
-        </a>
-        <a href="{% url 'expenses:visualizations' %}" class="btn btn-action btn-action--chart">
-            <i class="bi bi-pie-chart-fill"></i>
-            <span>年度开支可视化</span>
         </a>
         <button type="button" class="btn btn-action btn-action--expense" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
             <i class="bi bi-plus-circle-fill"></i>
@@ -360,6 +360,39 @@
     </div>
 </div>
 
+<!-- 月度趋势 Modal -->
+<div class="modal fade" id="monthlyTrendModal" tabindex="-1" aria-labelledby="monthlyTrendModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius:16px;overflow:hidden">
+            <div class="modal-header-add" style="padding:16px 24px">
+                <div class="modal-icon-header" style="background:linear-gradient(135deg,#4f81ff,#3a6be0)">
+                    <i class="bi bi-bar-chart-line-fill"></i>
+                </div>
+                <h5 class="modal-title-add" id="monthlyTrendModalLabel">{{ trend_year }} 年月度趋势</h5>
+                <button type="button" class="btn-close-add" data-bs-dismiss="modal" aria-label="关闭">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding:24px">
+                <!-- 柱状图 -->
+                <div style="height:260px;margin-bottom:20px">
+                    <canvas id="monthlyBarChart"></canvas>
+                </div>
+                <!-- 环比列表 -->
+                <div class="content-card" style="padding:16px 20px">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <span class="fw-600" style="font-size:.95rem;color:#1e293b">
+                            <i class="bi bi-arrow-left-right me-1 text-primary"></i>各月环比
+                        </span>
+                        <span class="text-muted small">与上一个有记录月份对比</span>
+                    </div>
+                    <div id="momList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 编辑开支模态框 -->
 <div class="modal fade" id="editExpenseModal" tabindex="-1" aria-labelledby="editExpenseModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-dialog-centered modal-add-expense">
@@ -438,6 +471,93 @@
 
 {% block extra_js %}
 <script>
+/* ─── 月度趋势数据 ─── */
+const monthlyBarData = {{ monthly_bar_data }};
+const momData        = {{ mom_data }};
+const trendYear      = {{ trend_year }};
+
+const MONTH_LABELS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const PALETTE_TREND = ['#4f81ff','#f6753a','#22c55e','#a855f7','#eab308','#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#f43f5e'];
+
+let trendChartInstance = null;
+
+document.getElementById('monthlyTrendModal').addEventListener('shown.bs.modal', function () {
+    const ctx = document.getElementById('monthlyBarChart');
+    if (trendChartInstance) { trendChartInstance.destroy(); }
+
+    // 柱状图颜色：有数据的月份用主色，无数据用浅灰
+    const barColors = monthlyBarData.map(v => v > 0 ? '#4f81ff' : '#e2e8f0');
+
+    trendChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: MONTH_LABELS,
+            datasets: [{
+                label: `${trendYear}年月支出`,
+                data: monthlyBarData,
+                backgroundColor: barColors,
+                borderRadius: 8,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ¥${ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`,
+                        afterLabel: function(ctx) {
+                            const m = momData[ctx.dataIndex];
+                            if (m === null || m === undefined) return '';
+                            const arrow = m > 0 ? '▲' : m < 0 ? '▼' : '—';
+                            return ` 环比 ${arrow} ${Math.abs(m).toFixed(1)}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v) }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 渲染环比列表
+    renderMomList();
+});
+
+function renderMomList() {
+    const el = document.getElementById('momList');
+    if (!el) return;
+    let html = '';
+    for (let i = 0; i < 12; i++) {
+        const val = monthlyBarData[i];
+        const m   = momData[i];
+        if (val === 0 && m === null) continue;  // 无数据月份跳过
+        const mStr = m === null ? '<span class="text-muted">—</span>'
+            : m > 0  ? `<span class="text-danger">▲ ${Math.abs(m).toFixed(1)}%</span>`
+            : m < 0  ? `<span class="text-success">▼ ${Math.abs(m).toFixed(1)}%</span>`
+            :          `<span class="text-muted">— 0%</span>`;
+        html += `
+        <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+            <span class="fw-500 text-muted" style="width:40px">${i+1}月</span>
+            <span class="flex-grow-1 text-end me-3" style="color:#1e293b;font-weight:600">
+                ¥${val.toLocaleString('zh-CN',{minimumFractionDigits:2})}
+            </span>
+            <span style="min-width:80px;text-align:right;font-size:.85rem">${mStr}</span>
+        </div>`;
+    }
+    el.innerHTML = html || '<p class="text-muted text-center py-3">暂无数据</p>';
+}
+
+// ─────────────────────────────────────────────────
+
 function confirmDelete(form) {
     return confirm('确定要删除这笔开支记录吗？');
 }

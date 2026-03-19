@@ -65,9 +65,45 @@ def expense_list(request):
     query_params.pop('page', None)
     filter_query_string = query_params.urlencode()
 
+    # ── 月度趋势数据（用于月度趋势 Modal）────────────────────
+    import json as _json
+    trend_year = int(year) if year else datetime.now().year
+    all_qs = Expense.objects.all()
+    monthly_bar_data = []
+    for m in range(1, 13):
+        mt = all_qs.filter(date__year=trend_year, date__month=m).aggregate(
+            Sum('amount')
+        )['amount__sum'] or 0
+        monthly_bar_data.append(float(mt))
+
+    # 环比：每月与上月对比
+    mom_data = []  # 每月环比增长率（%），无上月数据则为 None
+    for m in range(1, 13):
+        cur = monthly_bar_data[m - 1]
+        # 向前找最近一个有数据的月份（最多12个月）
+        prev_val = None
+        cy, cm = trend_year, m - 1
+        if cm == 0:
+            cy, cm = trend_year - 1, 12
+        for _ in range(12):
+            pv = all_qs.filter(date__year=cy, date__month=cm).aggregate(
+                Sum('amount')
+            )['amount__sum'] or 0
+            if pv > 0:
+                prev_val = float(pv)
+                break
+            cm -= 1
+            if cm == 0:
+                cy -= 1
+                cm = 12
+        if prev_val and prev_val > 0:
+            mom_data.append(round((cur - prev_val) / prev_val * 100, 2))
+        else:
+            mom_data.append(None)
+
     context = {
         'page_obj':            page_obj,
-        'expenses':            page_obj.object_list,   # 兼容模板原有变量名
+        'expenses':            page_obj.object_list,
         'total_expense':       total_expense,
         'total_count':         total_count,
         'latest_date':         latest_date,
@@ -75,7 +111,10 @@ def expense_list(request):
         'current_month':       int(month) if month else None,
         'all_years':           all_years,
         'filter_query_string': filter_query_string,
-        'form':                form,  # 添加表单，用于获取分类列表
+        'form':                form,
+        'trend_year':          trend_year,
+        'monthly_bar_data':    _json.dumps(monthly_bar_data),
+        'mom_data':            _json.dumps(mom_data),
     }
     return render(request, 'expenses/list.html', context)
 
@@ -260,12 +299,10 @@ def visualizations(request):
 
 
 def reports(request):
-    """统计报表页面"""
+    """统计报表页面（年度维度）"""
     from datetime import date as _date
 
-    # 获取年份和月份参数
     current_real_year = datetime.now().year
-    current_real_month = datetime.now().month
 
     year = request.GET.get('year', current_real_year)
     try:
@@ -273,12 +310,8 @@ def reports(request):
     except ValueError:
         year = current_real_year
 
-    month = request.GET.get('month', '')
-    if month:
-        try:
-            month = int(month)
-        except ValueError:
-            month = None
+    # 分类层级切换参数 (primary: 一级, secondary: 二级)，默认一级
+    viz_type = request.GET.get('viz_type', 'primary')
 
     # 获取所有有数据的年份
     db_years = list(Expense.objects.dates('date', 'year', order='DESC').distinct())
@@ -295,25 +328,14 @@ def reports(request):
     yearly_total = yearly_expenses.aggregate(Sum('amount'))['amount__sum'] or 0
     yearly_count = yearly_expenses.count()
 
-    # 月度统计（如果指定了月份）
-    if month:
-        monthly_expenses = expenses_qs.filter(date__year=year, date__month=month)
-        monthly_total = monthly_expenses.aggregate(Sum('amount'))['amount__sum'] or 0
-        monthly_count = monthly_expenses.count()
-    else:
-        monthly_total = None
-        monthly_count = None
-
-    # 日均、周均、月均
+    # 日均、周均
     days_in_year = 366 if year % 4 == 0 else 365
     if yearly_total > 0:
         daily_avg = yearly_total / days_in_year
         weekly_avg = yearly_total / 52
-        monthly_avg = yearly_total / 12
     else:
         daily_avg = 0
         weekly_avg = 0
-        monthly_avg = 0
 
     # 同比分析（与去年对比）
     last_year = year - 1
@@ -323,69 +345,7 @@ def reports(request):
     else:
         yoy_growth = 0 if yearly_total == 0 else 100
 
-
-    # 环比分析（与上个月对比，需要指定月份）
-    # 如果上个月没有支出，继续向前查找，直到找到有支出的月份
-    mom_growth = None
-    last_compare_year = None
-    last_compare_month = None
-    if month:
-        # 开始查找的年和月
-        compare_year = year
-        compare_month = month - 1
-
-        # 如果是1月份，从去年12月开始
-        if compare_month == 0:
-            compare_year = year - 1
-            compare_month = 12
-
-        # 递归向前查找有支出的月份，最多向前查找12个月
-        last_month_total = None
-        last_compare_month = None
-        last_compare_year = None
-
-        for _ in range(12):  # 最多向前查找12个月
-            # 检查这个月份是否有支出
-            monthly_check = expenses_qs.filter(
-                date__year=compare_year, date__month=compare_month
-            ).aggregate(Sum('amount'))['amount__sum'] or 0
-
-            if monthly_check > 0:
-                last_month_total = monthly_check
-                last_compare_month = compare_month
-                last_compare_year = compare_year
-                break
-
-            # 继续向前查找
-            compare_month -= 1
-            if compare_month == 0:
-                compare_year -= 1
-                compare_month = 12
-
-        # 如果找到有支出的月份，计算环比
-        if last_month_total is not None and last_month_total > 0:
-            mom_growth = ((monthly_total - last_month_total) / last_month_total) * 100
-
-    # 高消费日期标注（单日消费最高的前5天）
-    daily_totals = expenses_qs.filter(date__year=year).values('date').annotate(
-        daily_total=Sum('amount'),
-        daily_count=Count('id')
-    ).order_by('-daily_total')[:5]
-
-    # 每日消费分布（用于热力图）
-    daily_heatmap_data = {}
-    for m in range(1, 13):
-        end_day = monthrange(year, m)[1]
-        for d in range(1, end_day + 1):
-            daily_heatmap_data[f"{m:02d}-{d:02d}"] = 0
-
-    # 填充每日消费数据
-    for expense in yearly_expenses:
-        date_key = f"{expense.date.month:02d}-{expense.date.day:02d}"
-        if date_key in daily_heatmap_data:
-            daily_heatmap_data[date_key] += float(expense.amount)
-
-    # 月度趋势数据
+    # 月度趋势数据（供报表页折线图使用）
     monthly_trend_data = []
     for m in range(1, 13):
         month_total = expenses_qs.filter(date__year=year, date__month=m).aggregate(
@@ -393,47 +353,45 @@ def reports(request):
         )['amount__sum'] or 0
         monthly_trend_data.append(float(month_total))
 
-    # 周消费数据（按周统计）
-    weekly_data = {}
-    for week in range(1, 54):  # 最多53周
-        week_start = datetime(year, 1, 1) + datetime_timedelta(weeks=week-1)
-        week_end = week_start + datetime_timedelta(days=6)
-        if week_end.year > year:
-            break
-        week_total = expenses_qs.filter(
-            date__range=(week_start.date(), week_end.date())
-        ).aggregate(Sum('amount'))['amount__sum'] or 0
-        if week_total > 0:
-            weekly_data[week] = float(week_total)
+    # ── 分类占比饼图数据（支持一级/二级切换）──────────────────
+    if viz_type == 'secondary':
+        pie_data = expenses_qs.filter(date__year=year).values(
+            'category__name', 'category__parent__name'
+        ).annotate(total=Sum('amount')).order_by('-total')
+        pie_categories = []
+        pie_amounts = []
+        for item in pie_data:
+            if item['category__parent__name']:
+                label = f"{item['category__parent__name']} > {item['category__name']}"
+            else:
+                label = item['category__name']
+            pie_categories.append(label)
+            pie_amounts.append(float(item['total']))
+    else:
+        pie_data = expenses_qs.filter(date__year=year).values(
+            'category__parent__name', 'category__name'
+        ).annotate(total=Sum('amount')).order_by('-total')
+        pie_categories = []
+        pie_amounts = []
+        for item in pie_data:
+            label = item['category__parent__name'] or item['category__name']
+            pie_categories.append(label)
+            pie_amounts.append(float(item['total']))
 
-    # 类别排行榜（年度）
-    category_ranking = expenses_qs.filter(date__year=year).values(
-        'category__name', 'category__parent__name'
-    ).annotate(
-        total=Sum('amount'),
-        count=Count('id')
-    ).order_by('-total')[:10]
+    import json as _json
 
     context = {
         'year': year,
-        'month': month,
+        'viz_type': viz_type,
         'all_years': all_years,
         'yearly_total': yearly_total,
         'yearly_count': yearly_count,
-        'monthly_total': monthly_total,
-        'monthly_count': monthly_count,
         'daily_avg': daily_avg,
         'weekly_avg': weekly_avg,
-        'monthly_avg': monthly_avg,
         'last_year_total': last_year_total,
         'yoy_growth': yoy_growth,
-        'mom_growth': mom_growth,
-        'last_compare_year': last_compare_year,
-        'last_compare_month': last_compare_month,
-        'daily_totals': list(daily_totals),
-        'daily_heatmap_data': daily_heatmap_data,
         'monthly_trend_data': monthly_trend_data,
-        'weekly_data': weekly_data,
-        'category_ranking': list(category_ranking),
+        'pie_categories': _json.dumps(pie_categories, ensure_ascii=False),
+        'pie_amounts': _json.dumps(pie_amounts),
     }
     return render(request, 'expenses/reports.html', context)

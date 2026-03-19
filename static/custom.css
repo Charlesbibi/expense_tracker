@@ -549,17 +549,12 @@ body {
     background: #fafbff;
 }
 
-/* 摘要指标卡片（3列含波动率） */
-.trend-summary--3col {
-    grid-template-columns: repeat(3, 1fr);
-}
-
 /* 摘要指标卡片（2列） */
 .trend-summary {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 14px;
-    margin-bottom: 24px;
+    margin-bottom: 0;
 }
 .trend-summary-item {
     background: #fff;
@@ -586,6 +581,62 @@ body {
     font-weight: 700;
     color: var(--text);
 }
+
+/* 消费波动率展平条 */
+.trend-volatility-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 0 24px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: #f8f9fc;
+    border: 1px solid #eeeef8;
+    transition: background .3s, border-color .3s;
+}
+.tvb-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tvb-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: #eef3ff;
+    color: #4f81ff;
+    font-size: .9rem;
+}
+.tvb-label {
+    font-size: .8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.tvb-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.tvb-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.tvb-desc {
+    font-size: .78rem;
+    font-weight: 500;
+    opacity: .85;
+}
+/* 波动率不同等级的背景和边框 */
+.tvb--stable  { background: #f0fdf4; border-color: #bbf7d0; }
+.tvb--stable .tvb-icon  { background: #dcfce7; color: #22c55e; }
+.tvb--moderate { background: #fffbeb; border-color: #fde68a; }
+.tvb--moderate .tvb-icon { background: #fef3c7; color: #f59e0b; }
+.tvb--high  { background: #fef2f2; border-color: #fecaca; }
+.tvb--high .tvb-icon { background: #fee2e2; color: #ef4444; }
 
 /* 图表容器 */
 .trend-chart-wrap {
@@ -700,12 +751,13 @@ body {
 
 /* 响应式 */
 @media (max-width: 576px) {
-    .trend-summary, .trend-summary--3col { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .trend-summary--3col .trend-summary-item:last-child { grid-column: 1 / -1; }
+    .trend-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
     .trend-summary-item { padding: 12px 8px; }
     .trend-summary-item .ts-value { font-size: .95rem; }
     .trend-modal-body { padding: 18px; }
     .trend-mom-amount { min-width: 70px; font-size: .8rem; }
+    .trend-volatility-bar { padding: 10px 14px; flex-direction: column; align-items: flex-start; gap: 6px; }
+    .tvb-right { gap: 8px; }
 }
 
 /* 响应式：小屏下三个按钮上下排列 */

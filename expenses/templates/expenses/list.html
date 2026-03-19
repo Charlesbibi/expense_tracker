@@ -339,8 +339,8 @@
                 <button type="button" class="trend-close" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
             </div>
             <div class="trend-modal-body">
-                <!-- 摘要指标（3列） -->
-                <div class="trend-summary trend-summary--3col">
+                <!-- 摘要指标（2列） -->
+                <div class="trend-summary trend-summary--2col">
                     <div class="trend-summary-item">
                         <div class="ts-label"><i class="bi bi-trophy-fill me-1"></i>最高月份</div>
                         <div class="ts-value" id="trendMax">--</div>
@@ -349,9 +349,16 @@
                         <div class="ts-label"><i class="bi bi-calculator me-1"></i>月均支出</div>
                         <div class="ts-value" id="trendAvg">--</div>
                     </div>
-                    <div class="trend-summary-item">
-                        <div class="ts-label"><i class="bi bi-activity me-1"></i>消费波动率</div>
-                        <div class="ts-value" id="trendVolatility">--</div>
+                </div>
+                <!-- 消费波动率（展平条） -->
+                <div class="trend-volatility-bar" id="trendVolatilityBar">
+                    <div class="tvb-left">
+                        <span class="tvb-icon"><i class="bi bi-activity"></i></span>
+                        <span class="tvb-label">消费波动率</span>
+                    </div>
+                    <div class="tvb-right">
+                        <span class="tvb-value" id="trendVolatility">--</span>
+                        <span class="tvb-desc" id="trendVolatilityDesc"></span>
                     </div>
                 </div>
                 <!-- 柱状图 -->
@@ -514,12 +521,32 @@ document.getElementById('monthlyTrendModal').addEventListener('shown.bs.modal', 
 
     // 波动率
     const volEl = document.getElementById('trendVolatility');
+    const volDescEl = document.getElementById('trendVolatilityDesc');
+    const volBar = document.getElementById('trendVolatilityBar');
     if (activeMonths.length < 2) {
         volEl.textContent = '数据不足';
         volEl.style.color = 'var(--text-muted)';
+        volDescEl.textContent = '';
+        volBar.className = 'trend-volatility-bar';
     } else {
         volEl.textContent = volatility.toFixed(1) + '%';
-        volEl.style.color = volatility <= 15 ? '#22c55e' : volatility <= 30 ? '#f59e0b' : '#ef4444';
+        volBar.className = 'trend-volatility-bar';
+        if (volatility <= 15) {
+            volEl.style.color = '#22c55e';
+            volDescEl.textContent = '每月花销很稳定，差别不大';
+            volDescEl.style.color = '#22c55e';
+            volBar.classList.add('tvb--stable');
+        } else if (volatility <= 30) {
+            volEl.style.color = '#f59e0b';
+            volDescEl.textContent = '花销有一定起伏';
+            volDescEl.style.color = '#f59e0b';
+            volBar.classList.add('tvb--moderate');
+        } else {
+            volEl.style.color = '#ef4444';
+            volDescEl.textContent = '花销波动较大，某几个月会特别高或特别低';
+            volDescEl.style.color = '#ef4444';
+            volBar.classList.add('tvb--high');
+        }
     }
 
     // 柱状图 - 统一蓝色配色

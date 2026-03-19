@@ -549,94 +549,84 @@ body {
     background: #fafbff;
 }
 
-/* 摘要指标卡片（2列） */
-.trend-summary {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-    margin-bottom: 0;
-}
-.trend-summary-item {
-    background: #fff;
-    border-radius: 14px;
-    padding: 16px 20px;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid #f0f0ff;
-    transition: transform .2s, box-shadow .2s;
-}
-.trend-summary-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(168, 85, 247, 0.1);
-}
-.trend-summary-item .ts-label {
-    font-size: .75rem;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-    font-weight: 500;
-}
-.trend-summary-item .ts-label i { color: #a855f7; }
-.trend-summary-item .ts-value {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--text);
-}
-
-/* 消费波动率展平条 */
-.trend-volatility-bar {
+/* 摘要卡片（新版横排样式） */
+.trend-summary-new {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 14px 0 24px;
-    padding: 12px 20px;
-    border-radius: 12px;
-    background: #f8f9fc;
-    border: 1px solid #eeeef8;
-    transition: background .3s, border-color .3s;
+    gap: 12px;
+    margin-bottom: 24px;
 }
-.tvb-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.tvb-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: #eef3ff;
-    color: #4f81ff;
-    font-size: .9rem;
-}
-.tvb-label {
-    font-size: .8rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-.tvb-right {
+.trend-card {
+    flex: 1;
     display: flex;
     align-items: center;
     gap: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #f0f0ff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: transform .2s, box-shadow .2s;
 }
-.tvb-value {
-    font-size: 1.1rem;
+.trend-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(100, 100, 200, 0.1);
+}
+.trend-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.trend-card-icon--blue   { background: #eef3ff; color: #4f81ff; }
+.trend-card-icon--purple { background: #f3eefe; color: #a855f7; }
+.trend-card-icon--volatility { background: #eef3ff; color: #4f81ff; transition: background .3s, color .3s; }
+.trend-card-body {
+    min-width: 0;
+}
+.trend-card-label {
+    font-size: .7rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 2px;
+    white-space: nowrap;
+}
+.trend-card-value {
+    font-size: 1.05rem;
     font-weight: 700;
-    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.tvb-desc {
-    font-size: .78rem;
+.trend-card-value-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.trend-card-value-row small {
+    font-size: .7rem;
     font-weight: 500;
     opacity: .85;
+    margin-left: 2px;
 }
-/* 波动率不同等级的背景和边框 */
-.tvb--stable  { background: #f0fdf4; border-color: #bbf7d0; }
-.tvb--stable .tvb-icon  { background: #dcfce7; color: #22c55e; }
-.tvb--moderate { background: #fffbeb; border-color: #fde68a; }
-.tvb--moderate .tvb-icon { background: #fef3c7; color: #f59e0b; }
-.tvb--high  { background: #fef2f2; border-color: #fecaca; }
-.tvb--high .tvb-icon { background: #fee2e2; color: #ef4444; }
+
+/* 波动率卡片等级配色 */
+.trend-card--vol-stable .trend-card-icon--volatility { background: #dcfce7; color: #22c55e; }
+.trend-card--vol-moderate .trend-card-icon--volatility { background: #fef3c7; color: #f59e0b; }
+.trend-card--vol-high .trend-card-icon--volatility { background: #fee2e2; color: #ef4444; }
+.trend-card--vol-stable   { border-color: #bbf7d0; background: #f0fdf4; }
+.trend-card--vol-moderate { border-color: #fde68a; background: #fffbeb; }
+.trend-card--vol-high     { border-color: #fecaca; background: #fef2f2; }
 
 /* 图表容器 */
 .trend-chart-wrap {
@@ -751,13 +741,11 @@ body {
 
 /* 响应式 */
 @media (max-width: 576px) {
-    .trend-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .trend-summary-item { padding: 12px 8px; }
-    .trend-summary-item .ts-value { font-size: .95rem; }
+    .trend-summary-new { flex-direction: column; gap: 8px; }
+    .trend-card { padding: 12px 14px; }
+    .trend-card-value { font-size: .95rem; }
     .trend-modal-body { padding: 18px; }
     .trend-mom-amount { min-width: 70px; font-size: .8rem; }
-    .trend-volatility-bar { padding: 10px 14px; flex-direction: column; align-items: flex-start; gap: 6px; }
-    .tvb-right { gap: 8px; }
 }
 
 /* 响应式：小屏下三个按钮上下排列 */

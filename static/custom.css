@@ -411,19 +411,42 @@ body {
     color: #fff;
 }
 
+/* ── 月度趋势按钮（带光扫动画） ─────────────────────── */
 .btn-action--trend {
-    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #6d28d9 100%);
     color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+.btn-action--trend::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transition: left 0.5s ease;
 }
 .btn-action--trend:hover {
-    background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
-    box-shadow: 0 6px 20px rgba(6, 182, 212, 0.35);
+    background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+    box-shadow: 0 6px 24px rgba(168, 85, 247, 0.45);
+    transform: translateY(-3px);
     color: #fff;
-    transform: translateY(-2px);
+}
+.btn-action--trend:hover::before {
+    left: 100%;
 }
 .btn-action--trend:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(-1px) scale(0.98);
     color: #fff;
+}
+.btn-action--trend .trend-pulse {
+    animation: trendPulse 2s ease-in-out infinite;
+}
+@keyframes trendPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 .btn-action--category {
@@ -473,6 +496,185 @@ body {
 .btn-action--chart:active {
     transform: translateY(-1px) scale(0.98);
     color: #fff;
+}
+
+/* ── 月度趋势 Modal ─────────────────────────────────── */
+.trend-modal .modal-content {
+    border: none;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(168, 85, 247, 0.18), 0 8px 24px rgba(0,0,0,0.06);
+}
+.trend-modal .modal-backdrop.show { opacity: 0.45; }
+.trend-modal-header {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 40%, #4f81ff 100%);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.trend-modal-header .trend-icon {
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(6px);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; color: #fff;
+    flex-shrink: 0;
+}
+.trend-modal-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    flex: 1;
+}
+.trend-modal-header .trend-close {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background .2s;
+    flex-shrink: 0;
+}
+.trend-modal-header .trend-close:hover {
+    background: rgba(255,255,255,0.3);
+}
+.trend-modal-body {
+    padding: 28px;
+    background: #fafbff;
+}
+
+/* 摘要指标卡片 */
+.trend-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+}
+.trend-summary-item {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid #f0f0ff;
+    transition: transform .2s, box-shadow .2s;
+}
+.trend-summary-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(168, 85, 247, 0.1);
+}
+.trend-summary-item .ts-label {
+    font-size: .75rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+.trend-summary-item .ts-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+}
+.trend-summary-item .ts-value.text-up { color: #ef4444; }
+.trend-summary-item .ts-value.text-down { color: #22c55e; }
+
+/* 图表容器 */
+.trend-chart-wrap {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    border: 1px solid #f0f0ff;
+    margin-bottom: 20px;
+}
+.trend-chart-wrap canvas {
+    max-height: 280px !important;
+}
+
+/* 环比列表 */
+.trend-mom-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    border: 1px solid #f0f0ff;
+}
+.trend-mom-title {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.trend-mom-title i { color: #a855f7; }
+.trend-mom-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5fa;
+    gap: 14px;
+}
+.trend-mom-row:last-child { border-bottom: none; }
+.trend-mom-month {
+    width: 36px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.trend-mom-bar-wrap {
+    flex: 1;
+    height: 8px;
+    background: #f1f1fa;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.trend-mom-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .6s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(90deg, #a855f7, #6d28d9);
+}
+.trend-mom-bar.bar-down {
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+.trend-mom-bar.bar-neutral {
+    background: #cbd5e1;
+}
+.trend-mom-amount {
+    min-width: 90px;
+    text-align: right;
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--text);
+    flex-shrink: 0;
+}
+.trend-mom-change {
+    min-width: 82px;
+    text-align: right;
+    font-size: .8rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.trend-mom-change.up { color: #ef4444; }
+.trend-mom-change.down { color: #22c55e; }
+.trend-mom-change.neutral { color: #94a3b8; }
+
+/* 响应式 */
+@media (max-width: 576px) {
+    .trend-summary { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .trend-summary-item { padding: 12px 8px; }
+    .trend-summary-item .ts-value { font-size: .95rem; }
+    .trend-modal-body { padding: 18px; }
+    .trend-mom-amount { min-width: 70px; font-size: .8rem; }
 }
 
 /* 响应式：小屏下三个按钮上下排列 */

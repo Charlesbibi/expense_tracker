@@ -293,6 +293,51 @@ def visualizations(request):
     return render(request, 'expenses/visualizations.html', context)
 
 
+def visualizations_api(request):
+    """可视化数据 API（供弹窗调用）"""
+    current_real_year = datetime.now().year
+    year = request.GET.get('year', current_real_year)
+    try:
+        year = int(year)
+    except ValueError:
+        year = current_real_year
+
+    # 按月统计
+    monthly_data = {}
+    for month in range(1, 13):
+        start_date = datetime(year, month, 1)
+        end_day = monthrange(year, month)[1]
+        end_date = datetime(year, month, end_day).date()
+        total = Expense.objects.filter(
+            date__range=(start_date.date(), end_date)
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        monthly_data[month] = float(total)
+
+    # 按分类统计
+    category_data = Expense.objects.filter(
+        date__year=year
+    ).values('category__name', 'category__parent__name').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+
+    categories = []
+    amounts = []
+    for item in category_data:
+        if item['category__parent__name']:
+            full_name = f"{item['category__parent__name']} > {item['category__name']}"
+        else:
+            full_name = item['category__name']
+        categories.append(full_name)
+        amounts.append(float(item['total']))
+
+    return JsonResponse({
+        'year': year,
+        'monthly_data': monthly_data,
+        'categories': categories,
+        'amounts': amounts,
+    })
+
+
 def reports(request):
     """统计报表页面（年度维度）"""
     from datetime import date as _date

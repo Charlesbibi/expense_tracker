@@ -107,6 +107,9 @@
         <h3 class="report-card__title">
             <i class="bi bi-bar-chart-fill me-2"></i>月度支出趋势
         </h3>
+        <button type="button" class="btn-report-header" data-bs-toggle="modal" data-bs-target="#vizModal" data-year="{{ year }}">
+            <i class="bi bi-graph-up-arrow"></i>月度趋势分析
+        </button>
     </div>
     <div class="report-card__body">
         <canvas id="monthlyTrendChart" style="max-height: 300px;"></canvas>
@@ -151,6 +154,69 @@
         </div>
     </div>
 
+</div>
+
+<!-- 月度趋势分析弹窗 -->
+<div class="modal fade" id="vizModal" tabindex="-1" aria-labelledby="vizModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content viz-modal-content">
+            <div class="modal-header viz-modal-header">
+                <h5 class="modal-title" id="vizModalLabel">
+                    <i class="bi bi-graph-up-arrow me-2"></i>月度趋势分析
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body viz-modal-body">
+                <!-- 加载提示 -->
+                <div id="vizLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="text-muted mt-2 mb-0">正在加载数据...</p>
+                </div>
+
+                <!-- 图表区域 -->
+                <div id="vizContent" style="display:none;">
+                    <div class="row g-4">
+                        <!-- 月度柱状图 -->
+                        <div class="col-lg-7">
+                            <div class="viz-modal-card">
+                                <div class="viz-modal-card__header">
+                                    <span><i class="bi bi-bar-chart me-2 text-primary"></i>月度支出趋势</span>
+                                    <span class="badge bg-primary-subtle text-primary" id="vizYear1"></span>
+                                </div>
+                                <div class="viz-modal-card__body">
+                                    <canvas id="vizMonthlyChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 分类饼图 -->
+                        <div class="col-lg-5">
+                            <div class="viz-modal-card">
+                                <div class="viz-modal-card__header">
+                                    <span><i class="bi bi-pie-chart me-2 text-primary"></i>二级分类占比</span>
+                                    <span class="badge bg-primary-subtle text-primary" id="vizYear2"></span>
+                                </div>
+                                <div class="viz-modal-card__body d-flex align-items-center justify-content-center" style="min-height:260px">
+                                    <canvas id="vizCategoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 支出排行 -->
+                    <div class="viz-modal-card mt-4">
+                        <div class="viz-modal-card__header">
+                            <span><i class="bi bi-trophy me-2" style="color:#eab308"></i>支出排行</span>
+                            <span class="text-muted small" id="vizRankingYear"></span>
+                        </div>
+                        <div class="viz-modal-card__body">
+                            <div id="vizRankingList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -288,6 +354,160 @@ if (reportRankingEl && pieCategories.length > 0) {
             bar.style.width = bar.style.width;
         });
     }, 100);
+}
+// ─── 月度趋势分析弹窗 ──────────────────────────────────
+let vizModalCharts = [];
+const vizModal = document.getElementById('vizModal');
+if (vizModal) {
+    vizModal.addEventListener('show.bs.modal', function(e) {
+        const year = e.relatedTarget?.dataset.year || {{ year }};
+        loadVizData(year);
+    });
+    vizModal.addEventListener('hidden.bs.modal', function() {
+        // 销毁所有图表实例
+        vizModalCharts.forEach(c => c.destroy());
+        vizModalCharts = [];
+        document.getElementById('vizContent').style.display = 'none';
+        document.getElementById('vizLoading').style.display = '';
+    });
+}
+
+function loadVizData(year) {
+    const loading = document.getElementById('vizLoading');
+    const content = document.getElementById('vizContent');
+    loading.style.display = '';
+    content.style.display = 'none';
+
+    fetch('{% url "expenses:api_visualizations" %}?year=' + year)
+        .then(r => r.json())
+        .then(data => {
+            loading.style.display = 'none';
+            content.style.display = '';
+            renderVizCharts(data);
+        })
+        .catch(err => {
+            loading.innerHTML = '<p class="text-danger text-center py-4"><i class="bi bi-exclamation-circle me-1"></i>加载失败，请重试</p>';
+        });
+}
+
+function renderVizCharts(data) {
+    const year = data.year;
+    const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    const monthValues = Array.from({length:12}, (_,i) => data.monthly_data[i+1] || 0);
+
+    // 年份标签
+    document.getElementById('vizYear1').textContent = year;
+    document.getElementById('vizYear2').textContent = year;
+    document.getElementById('vizRankingYear').textContent = year + ' 年 · 二级分类';
+
+    // 月度柱状图
+    const maxVal = Math.max(...monthValues);
+    const barChart = new Chart(document.getElementById('vizMonthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: '月支出(元)',
+                data: monthValues,
+                backgroundColor: monthValues.map(v => v === maxVal ? '#4f81ff' : '#4f81ff66'),
+                borderColor: '#4f81ff',
+                borderWidth: 1.5,
+                borderRadius: 8,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ¥${ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v) }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+    vizModalCharts.push(barChart);
+
+    // 分类饼图
+    const cats = data.categories;
+    const amts = data.amounts;
+    const pieCanvas = document.getElementById('vizCategoryChart');
+    if (cats.length > 0) {
+        const pieChart = new Chart(pieCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: cats,
+                datasets: [{
+                    data: amts,
+                    backgroundColor: PALETTE.slice(0, cats.length),
+                    borderColor: '#ffffff',
+                    borderWidth: 3,
+                    hoverOffset: 12
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 14, boxWidth: 12, font: { size: 12 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                                const pct = ((ctx.raw / total) * 100).toFixed(1);
+                                return ` ¥${ctx.raw.toLocaleString('zh-CN',{minimumFractionDigits:2})} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        vizModalCharts.push(pieChart);
+    } else {
+        pieCanvas.parentElement.innerHTML =
+            '<p class="text-muted text-center py-5"><i class="bi bi-pie-chart fs-1 d-block mb-2 opacity-25"></i>暂无分类数据</p>';
+    }
+
+    // 支出排行
+    const rankingEl = document.getElementById('vizRankingList');
+    if (rankingEl && cats.length > 0) {
+        const totalAmt = amts.reduce((a,b) => a+b, 0);
+        const sorted = cats.map((c,i) => ({ name: c, val: amts[i] })).sort((a,b) => b.val - a.val);
+        rankingEl.innerHTML = sorted.map((item, i) => {
+            const pct = totalAmt > 0 ? (item.val / totalAmt * 100).toFixed(1) : 0;
+            const color = PALETTE[i % PALETTE.length];
+            return `
+            <div class="ranking-item-new mb-3">
+                <div class="ranking-item-new__header">
+                    <div class="ranking-item-new__left">
+                        <span class="ranking-badge-new" style="background:${color}">${i+1}</span>
+                        <span class="ranking-item-new__name">${item.name}</span>
+                    </div>
+                    <div class="ranking-item-new__right">
+                        <span class="ranking-item-new__amount" style="color:${color}">¥${item.val.toLocaleString('zh-CN',{minimumFractionDigits:2})}</span>
+                        <span class="ranking-item-new__percent">${pct}%</span>
+                    </div>
+                </div>
+                <div class="ranking-item-new__progress">
+                    <div class="ranking-item-new__progress-bar" style="width:${pct}%;background:${color}"></div>
+                </div>
+            </div>`;
+        }).join('');
+    }
 }
 </script>
 {% endblock %}

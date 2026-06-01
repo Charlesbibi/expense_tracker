@@ -13,4 +13,5 @@ urlpatterns = [
     path('visualizations/', views.visualizations, name='visualizations'),
     path('reports/', views.reports, name='reports'),
     path('api/categories/', views.get_categories_api, name='api_categories'),
+    path('api/visualizations/', views.visualizations_api, name='api_visualizations'),
 ]

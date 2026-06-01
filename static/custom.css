@@ -1464,12 +1464,91 @@ body {
 /* 分析卡片 */
 .report-card--analysis {
     border: 1px solid var(--border);
+    padding: 0;
 }
 
 .report-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 18px 24px;
     border-bottom: 1px solid var(--border);
     background: #fafbff;
+}
+
+/* 报表卡片头部的操作按钮 */
+.btn-report-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid #c3d5ff;
+    border-radius: var(--radius-sm);
+    font-size: .8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background var(--transition), border-color var(--transition), transform var(--transition);
+    cursor: pointer;
+}
+.btn-report-header:hover {
+    background: #dce8ff;
+    border-color: #a5befd;
+    color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+.btn-report-header i {
+    font-size: .85rem;
+}
+
+/* ── 月度趋势分析弹窗 ────────────────────────────────────── */
+.viz-modal-content {
+    border: none;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(30,58,138,.18);
+}
+.viz-modal-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b5fc0 60%, #4f81ff 100%);
+    color: #fff;
+    border-bottom: none;
+    padding: 18px 24px;
+}
+.viz-modal-header .modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+.viz-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: .7;
+}
+.viz-modal-header .btn-close:hover {
+    opacity: 1;
+}
+.viz-modal-body {
+    padding: 24px;
+    background: var(--bg);
+}
+.viz-modal-card {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+.viz-modal-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: #fafbff;
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--text);
+}
+.viz-modal-card__body {
+    padding: 20px;
 }
 
 .report-card__title {
@@ -1477,6 +1556,7 @@ body {
     font-weight: 600;
     color: var(--text);
     margin: 0;
+    flex: 1;
 }
 
 .report-card__body {
@@ -1595,11 +1675,13 @@ body {
 /* 图表卡片 */
 .report-card--chart {
     border: 1px solid var(--border);
+    padding: 0;
 }
 
 /* 排行榜卡片 */
 .report-card--ranking {
     border: 1px solid var(--border);
+    padding: 0;
 }
 
 /* 排行表格 */

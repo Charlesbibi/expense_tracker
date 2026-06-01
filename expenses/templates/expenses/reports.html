@@ -180,24 +180,24 @@
                     <div class="row g-4">
                         <!-- 月度柱状图 -->
                         <div class="col-lg-7">
-                            <div class="viz-modal-card">
+                            <div class="viz-modal-card h-100">
                                 <div class="viz-modal-card__header">
                                     <span><i class="bi bi-bar-chart me-2 text-primary"></i>月度支出趋势</span>
                                     <span class="badge bg-primary-subtle text-primary" id="vizYear1"></span>
                                 </div>
-                                <div class="viz-modal-card__body">
+                                <div class="viz-modal-card__body flex-fill">
                                     <canvas id="vizMonthlyChart"></canvas>
                                 </div>
                             </div>
                         </div>
                         <!-- 分类饼图 -->
                         <div class="col-lg-5">
-                            <div class="viz-modal-card">
+                            <div class="viz-modal-card h-100">
                                 <div class="viz-modal-card__header">
                                     <span><i class="bi bi-pie-chart me-2 text-primary"></i>二级分类占比</span>
                                     <span class="badge bg-primary-subtle text-primary" id="vizYear2"></span>
                                 </div>
-                                <div class="viz-modal-card__body d-flex align-items-center justify-content-center" style="min-height:260px">
+                                <div class="viz-modal-card__body d-flex align-items-center justify-content-center flex-fill">
                                     <canvas id="vizCategoryChart"></canvas>
                                 </div>
                             </div>
@@ -418,7 +418,7 @@ function renderVizCharts(data) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -431,9 +431,9 @@ function renderVizCharts(data) {
                 y: {
                     beginAtZero: true,
                     grid: { color: '#f1f5f9' },
-                    ticks: { callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v) }
+                    ticks: { callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v), font: { size: 11 } }
                 },
-                x: { grid: { display: false } }
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } }
             }
         }
     });
@@ -458,11 +458,12 @@ function renderVizCharts(data) {
             },
             options: {
                 responsive: true,
-                cutout: '62%',
+                maintainAspectRatio: false,
+                cutout: '58%',
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { padding: 14, boxWidth: 12, font: { size: 12 } }
+                        labels: { padding: 8, boxWidth: 10, font: { size: 11 } }
                     },
                     tooltip: {
                         callbacks: {

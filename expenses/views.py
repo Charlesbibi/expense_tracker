@@ -31,6 +31,42 @@ def get_categories_api(request):
     return JsonResponse({'success': True, 'categories': data})
 
 
+def monthly_analysis_api(request):
+    """API：按月获取分类开支数据（用于弹窗柱状图）"""
+    now = datetime.now()
+    year = request.GET.get('year', str(now.year))
+    month = request.GET.get('month', str(now.month))
+    try:
+        year = int(year)
+        month = int(month)
+    except (ValueError, TypeError):
+        year, month = now.year, now.month
+
+    # 按月筛选并按分类汇总
+    data = Expense.objects.filter(
+        date__year=year, date__month=month
+    ).values('category__name', 'category__parent__name').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+
+    categories = []
+    amounts = []
+    for item in data:
+        if item['category__parent__name']:
+            label = f"{item['category__parent__name']} > {item['category__name']}"
+        else:
+            label = item['category__name']
+        categories.append(label)
+        amounts.append(float(item['total']))
+
+    return JsonResponse({
+        'year': year,
+        'month': month,
+        'categories': categories,
+        'amounts': amounts,
+    })
+
+
 def home(request):
     """主页，重定向到开支列表"""
     return redirect('expenses:list')
@@ -40,9 +76,10 @@ def expense_list(request):
     """开支列表页面（带分页）"""
     expenses_qs = Expense.objects.select_related('category', 'category__parent').all()
 
-    # 按年/月筛选
-    year = request.GET.get('year', '')
-    month = request.GET.get('month', '')
+    # 按年/月筛选，默认当前年月
+    now = datetime.now()
+    year = request.GET.get('year', str(now.year))
+    month = request.GET.get('month', str(now.month))
     if year:
         expenses_qs = expenses_qs.filter(date__year=year)
     if month:
@@ -61,8 +98,13 @@ def expense_list(request):
     except (PageNotAnInteger, EmptyPage):
         page_obj = paginator.page(1)
 
-    # 获取所有年份用于下拉选择
-    all_years = Expense.objects.dates('date', 'year', order='DESC').distinct()
+    # 获取所有年份用于下拉选择，确保当前年份始终出现
+    db_years = list(Expense.objects.dates('date', 'year', order='DESC').distinct())
+    db_year_ints = [d.year for d in db_years]
+    if now.year not in db_year_ints:
+        from datetime import date as _date
+        db_years = [_date(now.year, 1, 1)] + db_years
+    all_years = db_years
 
     # 为模态框表单准备数据
     form = ExpenseForm(initial={'date': datetime.now().strftime('%Y-%m-%d')})
@@ -70,46 +112,12 @@ def expense_list(request):
     # 构建分页时保留筛选参数的查询字符串（去掉 page 参数）
     query_params = request.GET.copy()
     query_params.pop('page', None)
+    # 如果默认值不是来自 GET，补充进去以保证分页链接正确
+    if 'year' not in request.GET and year:
+        query_params['year'] = year
+    if 'month' not in request.GET and month:
+        query_params['month'] = month
     filter_query_string = query_params.urlencode()
-
-    # ── 月度趋势数据（用于月度趋势 Modal）────────────────────
-    import json as _json
-    trend_year = int(year) if year else datetime.now().year
-    all_qs = Expense.objects.all()
-    monthly_bar_data = []
-    monthly_count_data = []
-    for m in range(1, 13):
-        mt = all_qs.filter(date__year=trend_year, date__month=m).aggregate(
-            Sum('amount')
-        )['amount__sum'] or 0
-        monthly_bar_data.append(float(mt))
-        mc = all_qs.filter(date__year=trend_year, date__month=m).count()
-        monthly_count_data.append(mc)
-
-    # 环比：每月与上月对比
-    mom_data = []  # 每月环比增长率（%），无上月数据则为 None
-    for m in range(1, 13):
-        cur = monthly_bar_data[m - 1]
-        # 向前找最近一个有数据的月份（最多12个月）
-        prev_val = None
-        cy, cm = trend_year, m - 1
-        if cm == 0:
-            cy, cm = trend_year - 1, 12
-        for _ in range(12):
-            pv = all_qs.filter(date__year=cy, date__month=cm).aggregate(
-                Sum('amount')
-            )['amount__sum'] or 0
-            if pv > 0:
-                prev_val = float(pv)
-                break
-            cm -= 1
-            if cm == 0:
-                cy -= 1
-                cm = 12
-        if prev_val and prev_val > 0:
-            mom_data.append(round((cur - prev_val) / prev_val * 100, 2))
-        else:
-            mom_data.append(None)
 
     context = {
         'page_obj':            page_obj,
@@ -122,10 +130,6 @@ def expense_list(request):
         'all_years':           all_years,
         'filter_query_string': filter_query_string,
         'form':                form,
-        'trend_year':          trend_year,
-        'monthly_bar_data':    _json.dumps(monthly_bar_data),
-        'monthly_count_data':  _json.dumps(monthly_count_data),
-        'mom_data':            _json.dumps(mom_data),
     }
     return render(request, 'expenses/list.html', context)
 

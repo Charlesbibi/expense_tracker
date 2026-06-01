@@ -19,10 +19,6 @@
         </p>
     </div>
     <div class="d-flex gap-3">
-        <button type="button" class="btn btn-action btn-action--trend" data-bs-toggle="modal" data-bs-target="#monthlyTrendModal">
-            <i class="bi bi-graph-up-arrow trend-pulse"></i>
-            <span>月度趋势</span>
-        </button>
         <a href="{% url 'expenses:add_category' %}" class="btn btn-action btn-action--category">
             <i class="bi bi-tags-fill"></i>
             <span>添加类别</span>
@@ -121,6 +117,10 @@
                     <span>重置</span>
                 </a>
             </div>
+            <button type="button" class="btn-analysis" data-bs-toggle="modal" data-bs-target="#monthlyAnalysisModal">
+                <i class="bi bi-bar-chart-line"></i>
+                <span>月度开支分析</span>
+            </button>
         </form>
     </div>
 
@@ -331,74 +331,6 @@
     </div>
 </div>
 
-<!-- 月度趋势 Modal -->
-<div class="modal fade trend-modal" id="monthlyTrendModal" tabindex="-1" aria-labelledby="monthlyTrendModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="trend-modal-header">
-                <div class="trend-icon"><i class="bi bi-graph-up-arrow"></i></div>
-                <h5 id="monthlyTrendModalLabel">{{ trend_year }} 年月度趋势</h5>
-                <button type="button" class="trend-close" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
-            </div>
-            <div class="trend-modal-body">
-                <!-- 摘要指标（3列新样式） -->
-                <div class="trend-summary-new">
-                    <div class="trend-card">
-                        <div class="trend-card-icon trend-card-icon--blue">
-                            <i class="bi bi-trophy-fill"></i>
-                        </div>
-                        <div class="trend-card-body">
-                            <div class="trend-card-label">最高月份</div>
-                            <div class="trend-card-value" id="trendMax">--</div>
-                        </div>
-                    </div>
-                    <div class="trend-card">
-                        <div class="trend-card-icon trend-card-icon--purple">
-                            <i class="bi bi-calculator"></i>
-                        </div>
-                        <div class="trend-card-body">
-                            <div class="trend-card-label">月均支出</div>
-                            <div class="trend-card-value" id="trendAvg">--</div>
-                        </div>
-                    </div>
-                    <div class="trend-card trend-card--volatility" id="trendVolatilityCard">
-                        <div class="trend-card-icon trend-card-icon--volatility">
-                            <i class="bi bi-activity"></i>
-                        </div>
-                        <div class="trend-card-body">
-                            <div class="trend-card-label">消费波动率</div>
-                            <div class="trend-card-value-row">
-                                <span id="trendVolatility">--</span>
-                                <small id="trendVolatilityDesc"></small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- 柱状图 -->
-                <div class="trend-chart-wrap">
-                    <canvas id="monthlyBarChart"></canvas>
-                </div>
-                <!-- 环比列表 -->
-                <div class="trend-mom-card">
-                    <div class="trend-mom-title">
-                        <i class="bi bi-arrow-left-right"></i>各月明细
-                        <span style="font-size:.75rem;font-weight:400;color:var(--text-muted);margin-left:auto">与上一个有记录月份环比</span>
-                    </div>
-                    <!-- 表头 -->
-                    <div class="trend-mom-head">
-                        <span style="width:36px;flex-shrink:0"></span>
-                        <span class="trend-mom-head-bar">支出分布</span>
-                        <span class="trend-mom-head-amount">金额</span>
-                        <span class="trend-mom-head-count">笔数</span>
-                        <span class="trend-mom-head-change">环比</span>
-                    </div>
-                    <div id="momList"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- 编辑开支模态框 -->
 <div class="modal fade" id="editExpenseModal" tabindex="-1" aria-labelledby="editExpenseModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-dialog-centered modal-add-expense">
@@ -473,238 +405,35 @@
     </div>
 </div>
 
+<!-- 月度开支分析弹窗 -->
+<div class="modal fade" id="monthlyAnalysisModal" tabindex="-1" aria-labelledby="monthlyAnalysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content viz-modal-content">
+            <div class="modal-header viz-modal-header">
+                <h5 class="modal-title" id="monthlyAnalysisModalLabel">
+                    <i class="bi bi-bar-chart-line me-2"></i>月度开支分析
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body viz-modal-body">
+                <div class="analysis-modal-card">
+                    <div class="analysis-modal-card__header">
+                        <span id="analysisModalSubtitle">分类开支占比</span>
+                        <span class="analysis-modal-card__period" id="analysisModalPeriod">2026年6月</span>
+                    </div>
+                    <div class="analysis-modal-card__body">
+                        <canvas id="monthlyAnalysisChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-/* ─── 月度趋势数据 ─── */
-const monthlyBarData = {{ monthly_bar_data }};
-const monthlyCountData = {{ monthly_count_data }};
-const momData        = {{ mom_data }};
-const trendYear      = {{ trend_year }};
-
-const MONTH_LABELS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-
-let trendChartInstance = null;
-
-/* ─── 环比列表多彩色盘（与项目主题呼应） ─── */
-const MOM_BAR_COLORS = [
-    '#4f81ff', '#6366f1', '#a855f7', '#ec4899',
-    '#ef4444', '#f97316', '#f59e0b', '#22c55e',
-    '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6',
-];
-const MOM_BAR_GRADIENTS = [
-    'linear-gradient(90deg, #4f81ff, #3a6be0)',
-    'linear-gradient(90deg, #6366f1, #4f46e5)',
-    'linear-gradient(90deg, #a855f7, #9333ea)',
-    'linear-gradient(90deg, #ec4899, #db2777)',
-    'linear-gradient(90deg, #ef4444, #dc2626)',
-    'linear-gradient(90deg, #f97316, #ea580c)',
-    'linear-gradient(90deg, #f59e0b, #d97706)',
-    'linear-gradient(90deg, #22c55e, #16a34a)',
-    'linear-gradient(90deg, #14b8a6, #0d9488)',
-    'linear-gradient(90deg, #06b6d4, #0891b2)',
-    'linear-gradient(90deg, #3b82f6, #2563eb)',
-    'linear-gradient(90deg, #8b5cf6, #7c3aed)',
-];
-
-/* ─── 计算消费波动率（变异系数 CV） ─── */
-function calcVolatility() {
-    const activeMonths = monthlyBarData.filter(v => v > 0);
-    if (activeMonths.length < 2) return 0;
-    const mean = activeMonths.reduce((a, b) => a + b, 0) / activeMonths.length;
-    const variance = activeMonths.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / activeMonths.length;
-    return (Math.sqrt(variance) / mean) * 100;
-}
-
-/* ─── 渲染图表 ─── */
-document.getElementById('monthlyTrendModal').addEventListener('shown.bs.modal', function () {
-    const ctx = document.getElementById('monthlyBarChart');
-    if (trendChartInstance) { trendChartInstance.destroy(); }
-
-    const activeMonths = monthlyBarData.filter(v => v > 0);
-    const maxVal = Math.max(...monthlyBarData, 1);
-    const avgVal = activeMonths.length > 0 ? activeMonths.reduce((a, b) => a + b, 0) / activeMonths.length : 0;
-    const maxIdx = monthlyBarData.indexOf(maxVal);
-    const volatility = calcVolatility();
-
-    // 摘要
-    document.getElementById('trendMax').textContent = `${maxIdx + 1}月 · ¥${maxVal.toLocaleString('zh-CN', {minimumFractionDigits: 0})}`;
-    document.getElementById('trendAvg').textContent = '¥' + avgVal.toLocaleString('zh-CN', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-
-    // 波动率
-    const volEl = document.getElementById('trendVolatility');
-    const volDescEl = document.getElementById('trendVolatilityDesc');
-    const volCard = document.getElementById('trendVolatilityCard');
-    volCard.className = 'trend-card trend-card--volatility';
-    if (activeMonths.length < 2) {
-        volEl.textContent = '数据不足';
-        volEl.style.color = 'var(--text-muted)';
-        volDescEl.textContent = '';
-    } else {
-        volEl.textContent = volatility.toFixed(1) + '%';
-        if (volatility <= 15) {
-            volEl.style.color = '#22c55e';
-            volDescEl.textContent = '每月花销很稳定，差别不大';
-            volDescEl.style.color = '#22c55e';
-            volCard.classList.add('trend-card--vol-stable');
-        } else if (volatility <= 30) {
-            volEl.style.color = '#f59e0b';
-            volDescEl.textContent = '花销有一定起伏';
-            volDescEl.style.color = '#f59e0b';
-            volCard.classList.add('trend-card--vol-moderate');
-        } else {
-            volEl.style.color = '#ef4444';
-            volDescEl.textContent = '花销波动较大，某几个月会特别高或特别低';
-            volDescEl.style.color = '#ef4444';
-            volCard.classList.add('trend-card--vol-high');
-        }
-    }
-
-    // 柱状图 - 统一蓝色配色
-    const barColors = monthlyBarData.map((v, i) => {
-        if (v === 0) return '#e9ecf5';
-        if (i === maxIdx) return 'rgba(79, 129, 255, 1)';
-        return 'rgba(79, 129, 255, 0.7)';
-    });
-    const barBorders = monthlyBarData.map((v, i) => {
-        if (v === 0) return '#e9ecf5';
-        if (i === maxIdx) return '#2563eb';
-        return '#4f81ff';
-    });
-
-    // 均值线插件
-    const avgLinePlugin = {
-        id: 'avgLine',
-        afterDraw(chart) {
-            if (avgVal <= 0) return;
-            const yAxis = chart.scales.y;
-            const xAxis = chart.scales.x;
-            const yPixel = yAxis.getPixelForValue(avgVal);
-            const ctx2 = chart.ctx;
-            ctx2.save();
-            ctx2.setLineDash([6, 4]);
-            ctx2.strokeStyle = '#f59e0b';
-            ctx2.lineWidth = 2;
-            ctx2.beginPath();
-            ctx2.moveTo(xAxis.left, yPixel);
-            ctx2.lineTo(xAxis.right, yPixel);
-            ctx2.stroke();
-            ctx2.setLineDash([]);
-            ctx2.fillStyle = '#fff';
-            ctx2.strokeStyle = '#f59e0b';
-            ctx2.lineWidth = 1.5;
-            const label = '均值 ¥' + avgVal.toLocaleString('zh-CN', {maximumFractionDigits: 0});
-            ctx2.font = '600 11px Inter, sans-serif';
-            const tw = ctx2.measureText(label).width + 12;
-            const lx = xAxis.right - tw - 4;
-            ctx2.beginPath();
-            ctx2.roundRect(lx, yPixel - 10, tw, 20, 4);
-            ctx2.fill();
-            ctx2.stroke();
-            ctx2.fillStyle = '#f59e0b';
-            ctx2.textBaseline = 'middle';
-            ctx2.fillText(label, lx + 6, yPixel);
-            ctx2.restore();
-        }
-    };
-
-    trendChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: MONTH_LABELS,
-            datasets: [{
-                label: `${trendYear}年月支出`,
-                data: monthlyBarData,
-                backgroundColor: barColors,
-                borderColor: barBorders,
-                borderWidth: 2,
-                borderRadius: 10,
-                borderSkipped: false,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 800, easing: 'easeOutQuart' },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#1e293b',
-                    cornerRadius: 10,
-                    padding: 12,
-                    titleFont: { weight: '700', size: 13 },
-                    bodyFont: { size: 12 },
-                    callbacks: {
-                        title: function(items) {
-                            const i = items[0].dataIndex;
-                            const cnt = monthlyCountData[i];
-                            return `${trendYear}年 ${i+1}月` + (cnt > 0 ? ` · ${cnt}笔` : '');
-                        },
-                        label: c => ` 支出  ¥${c.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`,
-                        afterLabel: function(c) {
-                            const m = momData[c.dataIndex];
-                            if (m === null || m === undefined) return '';
-                            const arrow = m > 0 ? '▲' : m < 0 ? '▼' : '—';
-                            const tag = m > 0 ? '增加' : m < 0 ? '减少' : '持平';
-                            return ` 环比 ${arrow} ${Math.abs(m).toFixed(1)}%（${tag}）`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#f3f4f8', drawBorder: false },
-                    ticks: { callback: v => '¥' + (v >= 10000 ? (v/10000).toFixed(1)+'w' : v >= 1000 ? (v/1000).toFixed(1)+'k' : v), font: { size: 11 }, color: '#94a3b8' },
-                    border: { display: false }
-                },
-                x: { grid: { display: false }, ticks: { font: { size: 12, weight: '600' }, color: '#64748b' }, border: { display: false } }
-            }
-        },
-        plugins: [avgLinePlugin]
-    });
-
-    renderMomList(maxVal);
-});
-
-/* ─── 环比列表（多彩配色） ─── */
-function renderMomList(maxVal) {
-    const el = document.getElementById('momList');
-    if (!el) return;
-    let html = '';
-    for (let i = 0; i < 12; i++) {
-        const val = monthlyBarData[i];
-        const cnt = monthlyCountData[i];
-        const m   = momData[i];
-        if (val === 0 && m === null) continue;
-        const pct = maxVal > 0 ? Math.min((val / maxVal) * 100, 100) : 0;
-        const barStyle = `background: ${MOM_BAR_GRADIENTS[i]}`;
-        const mStr = m === null ? '<span class="neutral">—</span>'
-            : m > 0  ? `<span class="up">↑ ${m.toFixed(1)}%</span>`
-            : m < 0  ? `<span class="down">↓ ${Math.abs(m).toFixed(1)}%</span>`
-            :          `<span class="neutral">— 0%</span>`;
-        html += `
-        <div class="trend-mom-row">
-            <span class="trend-mom-month" style="color:${MOM_BAR_COLORS[i]}">${i+1}月</span>
-            <div class="trend-mom-bar-wrap">
-                <div class="trend-mom-bar" style="${barStyle};width:0%" data-width="${pct}%"></div>
-            </div>
-            <span class="trend-mom-amount">¥${val.toLocaleString('zh-CN',{minimumFractionDigits:0,maximumFractionDigits:2})}</span>
-            <span class="trend-mom-count">${cnt > 0 ? cnt + '笔' : '—'}</span>
-            <span class="trend-mom-change">${mStr}</span>
-        </div>`;
-    }
-    el.innerHTML = html || '<p style="text-align:center;color:var(--text-muted);padding:16px 0">暂无数据</p>';
-
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            el.querySelectorAll('.trend-mom-bar').forEach(bar => {
-                bar.style.width = bar.dataset.width;
-            });
-        });
-    });
-}
 
 // ─────────────────────────────────────────────────
 
@@ -1061,6 +790,117 @@ function openEditModal(expenseId) {
 }
 
 // 提交编辑表单
+// ─── 月度开支分析弹窗 ───────────────────────────────────────
+
+let monthlyAnalysisChartInstance = null;
+
+const monthlyAnalysisModal = document.getElementById('monthlyAnalysisModal');
+if (monthlyAnalysisModal) {
+    monthlyAnalysisModal.addEventListener('show.bs.modal', function () {
+        const yearSelect = document.getElementById('yearSelect');
+        const monthSelect = document.getElementById('monthSelect');
+        const year = yearSelect ? yearSelect.value || new Date().getFullYear() : new Date().getFullYear();
+        const month = monthSelect ? monthSelect.value || (new Date().getMonth() + 1) : (new Date().getMonth() + 1);
+
+        // 更新副标题
+        const periodEl = document.getElementById('analysisModalPeriod');
+        if (periodEl) {
+            periodEl.textContent = `${year}年${month}月`;
+        }
+
+        // 加载数据
+        fetch(`{% url "expenses:api_monthly_analysis" %}?year=${year}&month=${month}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => {
+            renderMonthlyAnalysisChart(data.categories, data.amounts);
+        })
+        .catch(() => {
+            // 静默失败
+        });
+    });
+
+    monthlyAnalysisModal.addEventListener('hidden.bs.modal', function () {
+        if (monthlyAnalysisChartInstance) {
+            monthlyAnalysisChartInstance.destroy();
+            monthlyAnalysisChartInstance = null;
+        }
+    });
+}
+
+function renderMonthlyAnalysisChart(categories, amounts) {
+    const ctx = document.getElementById('monthlyAnalysisChart');
+    if (!ctx) return;
+
+    if (monthlyAnalysisChartInstance) {
+        monthlyAnalysisChartInstance.destroy();
+    }
+
+    // 如果没有数据
+    if (!categories || categories.length === 0) {
+        // 可以显示空状态，这里先简单留空
+        return;
+    }
+
+    monthlyAnalysisChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: categories,
+            datasets: [{
+                label: '支出金额',
+                data: amounts,
+                backgroundColor: 'rgba(79, 129, 255, 0.75)',
+                borderColor: 'rgba(79, 129, 255, 1)',
+                borderWidth: 1,
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(30, 58, 138, 0.9)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    titleFont: { size: 13, weight: '600' },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            return '¥' + context.parsed.y.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#64748b',
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#94a3b8',
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString('zh-CN');
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
 document.getElementById('submitEditBtn').addEventListener('click', function() {
     const form = document.getElementById('editExpenseForm');
     const expenseId = document.getElementById('editExpenseId').value;

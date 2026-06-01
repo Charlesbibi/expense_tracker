@@ -240,8 +240,8 @@ def visualizations(request):
     except ValueError:
         year = current_real_year
 
-    # 获取可视化类型参数 (primary: 一级分类, secondary: 二级分类)，默认为一级
-    viz_type = request.GET.get('viz_type', 'primary')  # primary 或 secondary
+    # 固定为二级分类展示
+    viz_type = 'secondary'
 
     # 获取所有有数据的年份，并确保当前年份始终出现（即便今年还没有数据）
     from datetime import date as _date
@@ -264,39 +264,23 @@ def visualizations(request):
 
         monthly_data[month] = float(total)
 
-    # 2. 按分类统计开支占比 (根据 viz_type 决定是按一级还是二级)
-    if viz_type == 'secondary':
-        # 查询所有二级分类及其总金额
-        category_data = Expense.objects.filter(
-            date__year=year
-        ).values('category__name', 'category__parent__name').annotate(
-            total=Sum('amount')
-        ).order_by('-total')
+    # 2. 按分类统计开支占比（固定二级分类展示）
+    category_data = Expense.objects.filter(
+        date__year=year
+    ).values('category__name', 'category__parent__name').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
 
-        # 将结果整理成两个列表：类别名和金额
-        categories = []
-        amounts = []
-        for item in category_data:
-            if item['category__parent__name']:
-                full_name = f"{item['category__parent__name']} > {item['category__name']}"
-            else:
-                full_name = item['category__name']
-            categories.append(full_name)
-            amounts.append(float(item['total']))
-    else:  # viz_type == 'primary'
-        category_data = Expense.objects.filter(
-            date__year=year
-        ).values('category__parent__name', 'category__name').annotate(
-            total=Sum('amount')
-        ).order_by('-total')
-
-        # 将结果整理成两个列表：类别名和金额
-        categories = []
-        amounts = []
-        for item in category_data:
-            category_name = item['category__parent__name'] or item['category__name']
-            categories.append(category_name)
-            amounts.append(float(item['total']))
+    # 将结果整理成两个列表：类别名和金额
+    categories = []
+    amounts = []
+    for item in category_data:
+        if item['category__parent__name']:
+            full_name = f"{item['category__parent__name']} > {item['category__name']}"
+        else:
+            full_name = item['category__name']
+        categories.append(full_name)
+        amounts.append(float(item['total']))
 
     context = {
         'monthly_data': monthly_data,
@@ -321,8 +305,8 @@ def reports(request):
     except ValueError:
         year = current_real_year
 
-    # 分类层级切换参数 (primary: 一级, secondary: 二级)，默认一级
-    viz_type = request.GET.get('viz_type', 'primary')
+    # 固定为二级分类展示
+    viz_type = 'secondary'
 
     # 获取所有有数据的年份
     db_years = list(Expense.objects.dates('date', 'year', order='DESC').distinct())
@@ -364,30 +348,19 @@ def reports(request):
         )['amount__sum'] or 0
         monthly_trend_data.append(float(month_total))
 
-    # ── 分类占比饼图数据（支持一级/二级切换）──────────────────
-    if viz_type == 'secondary':
-        pie_data = expenses_qs.filter(date__year=year).values(
-            'category__name', 'category__parent__name'
-        ).annotate(total=Sum('amount')).order_by('-total')
-        pie_categories = []
-        pie_amounts = []
-        for item in pie_data:
-            if item['category__parent__name']:
-                label = f"{item['category__parent__name']} > {item['category__name']}"
-            else:
-                label = item['category__name']
-            pie_categories.append(label)
-            pie_amounts.append(float(item['total']))
-    else:
-        pie_data = expenses_qs.filter(date__year=year).values(
-            'category__parent__name', 'category__name'
-        ).annotate(total=Sum('amount')).order_by('-total')
-        pie_categories = []
-        pie_amounts = []
-        for item in pie_data:
-            label = item['category__parent__name'] or item['category__name']
-            pie_categories.append(label)
-            pie_amounts.append(float(item['total']))
+    # ── 分类占比饼图数据（固定二级分类展示）──────────────────
+    pie_data = expenses_qs.filter(date__year=year).values(
+        'category__name', 'category__parent__name'
+    ).annotate(total=Sum('amount')).order_by('-total')
+    pie_categories = []
+    pie_amounts = []
+    for item in pie_data:
+        if item['category__parent__name']:
+            label = f"{item['category__parent__name']} > {item['category__name']}"
+        else:
+            label = item['category__name']
+        pie_categories.append(label)
+        pie_amounts.append(float(item['total']))
 
     import json as _json
 

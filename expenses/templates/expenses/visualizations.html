@@ -13,26 +13,15 @@
         <p class="text-muted small mb-0">{{ current_year }} 年度支出分析</p>
     </div>
 
-    <!-- 年份 & 分类切换 -->
+    <!-- 年份筛选 -->
     <div class="d-flex align-items-center gap-2">
         <form method="get" class="d-flex align-items-center gap-2">
-            <input type="hidden" name="viz_type" value="{{ viz_type }}">
             <select name="year" class="form-select form-select-sm" style="width:110px" onchange="this.form.submit()">
                 {% for y in all_years %}
                     <option value="{{ y.year }}" {% if current_year == y.year %}selected{% endif %}>{{ y.year }}年</option>
                 {% endfor %}
             </select>
         </form>
-        <div class="btn-group btn-group-sm" role="group">
-            <a href="?year={{ current_year }}&viz_type=primary"
-               class="btn {% if viz_type == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-                <i class="bi bi-diagram-2 me-1"></i>一级
-            </a>
-            <a href="?year={{ current_year }}&viz_type=secondary"
-               class="btn {% if viz_type == 'secondary' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-                <i class="bi bi-diagram-3 me-1"></i>二级
-            </a>
-        </div>
     </div>
 </div>
 
@@ -57,7 +46,7 @@
         <div class="content-card chart-card h-100">
             <div class="chart-card__header">
                 <span><i class="bi bi-pie-chart me-2 text-primary"></i>
-                    {% if viz_type == 'secondary' %}二级分类{% else %}一级分类{% endif %}占比
+                    二级分类占比
                 </span>
                 <span class="badge bg-primary-subtle text-primary">{{ current_year }}</span>
             </div>
@@ -73,7 +62,7 @@
 <div class="content-card mb-4">
     <div class="chart-card__header">
         <span><i class="bi bi-trophy me-2 text-warning"></i>支出排行</span>
-        <span class="text-muted small">{{ current_year }} 年 · {% if viz_type == 'primary' %}一级分类{% else %}二级分类{% endif %}</span>
+        <span class="text-muted small">{{ current_year }} 年 · 二级分类</span>
     </div>
     <div class="px-4 pb-4">
         {% if categories %}

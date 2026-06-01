@@ -13,27 +13,15 @@
         <p class="text-muted small mb-0">{{ year }} 年度年报</p>
     </div>
 
-    <!-- 年份筛选 & 分类切换 -->
+    <!-- 年份筛选 -->
     <div class="d-flex align-items-center gap-2">
         <form method="get" class="d-flex align-items-center gap-2">
-            <input type="hidden" name="viz_type" value="{{ viz_type }}">
             <select name="year" class="form-select form-select-sm" style="width:110px" onchange="this.form.submit()">
                 {% for y in all_years %}
                     <option value="{{ y.year }}" {% if year == y.year %}selected{% endif %}>{{ y.year }}年</option>
                 {% endfor %}
             </select>
         </form>
-        <!-- 一级 / 二级分类切换 -->
-        <div class="btn-group btn-group-sm" role="group">
-            <a href="?year={{ year }}&viz_type=primary"
-               class="btn {% if viz_type == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-                <i class="bi bi-diagram-2 me-1"></i>一级
-            </a>
-            <a href="?year={{ year }}&viz_type=secondary"
-               class="btn {% if viz_type == 'secondary' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-                <i class="bi bi-diagram-3 me-1"></i>二级
-            </a>
-        </div>
     </div>
 </div>
 
@@ -137,7 +125,7 @@
             <div class="report-card__header">
                 <h3 class="report-card__title">
                     <i class="bi bi-pie-chart-fill me-2"></i>
-                    {% if viz_type == 'secondary' %}二级{% else %}一级{% endif %}分类占比
+                    二级分类占比
                 </h3>
             </div>
             <div class="report-card__body d-flex align-items-center justify-content-center" style="min-height:280px">
@@ -154,7 +142,7 @@
                     <i class="bi bi-trophy-fill me-2"></i>支出排行
                 </h3>
                 <span class="text-muted small">
-                    {{ year }} 年 · {% if viz_type == 'primary' %}一级分类{% else %}二级分类{% endif %}
+                    {{ year }} 年 · 二级分类
                 </span>
             </div>
             <div class="report-card__body">

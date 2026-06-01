@@ -10,8 +10,15 @@ from .forms import ExpenseForm, CategoryForm
 
 
 def get_categories_api(request):
-    """API：获取所有类别列表（用于 AJAX 加载）"""
-    categories = ExpenseCategory.objects.all()
+    """API：获取叶子类别列表（用于 AJAX 加载）
+    只返回没有子分类的类别：有二级的不显示一级，仅一级的显示自身
+    """
+    parent_ids = ExpenseCategory.objects.exclude(
+        parent__isnull=True
+    ).values_list('parent_id', flat=True).distinct()
+    categories = ExpenseCategory.objects.exclude(
+        id__in=parent_ids
+    ).order_by('parent__name', 'name')
     data = [
         {
             'id': cat.id,
@@ -20,7 +27,7 @@ def get_categories_api(request):
         }
         for cat in categories
     ]
-    print(f"[DEBUG] 返回类别数据: {len(data)} 个类别")
+    print(f"[DEBUG] 返回叶子类别数据: {len(data)} 个类别")
     return JsonResponse({'success': True, 'categories': data})
 
 

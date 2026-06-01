@@ -129,9 +129,15 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5 text-muted">
-                        <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
-                        暂无类别，快去新增第一个吧！
+                    <div class="empty-state-wrap">
+                        <div class="empty-state-icon">
+                            <i class="bi bi-tags"></i>
+                        </div>
+                        <div class="empty-state-title">暂无类别</div>
+                        <div class="empty-state-hint">
+                            <i class="bi bi-lightbulb"></i>
+                            在左侧填写名称和图标，新增第一个类别吧
+                        </div>
                     </div>
                 {% endif %}
             </div>

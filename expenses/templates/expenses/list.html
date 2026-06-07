@@ -138,22 +138,22 @@
             </thead>
             <tbody>
                 {% for expense in expenses %}
-                <tr class="expense-row" style="animation-delay: {{ forloop.counter0 }}00ms">
+                <tr class="expense-row{% if expense.is_high_amount %} expense-row--high-amount{% endif %}" style="animation-delay: {{ forloop.counter0 }}00ms">
                     <td class="text-center">
                         <span class="date-badge">{{ expense.date|date:"Y/m/d" }}</span>
                     </td>
                     <td class="text-center">
                         {% with cat_path=expense.category.get_full_path %}
                             {% if ">" in cat_path %}
-                                <span class="category-tag parent">{{ cat_path|truncatechars_html:20 }}</span>
+                                <span class="category-tag parent {{ expense.cat_color_class }}">{{ cat_path|truncatechars_html:20 }}</span>
                             {% else %}
-                                <span class="category-tag">{{ cat_path }}</span>
+                                <span class="category-tag {{ expense.cat_color_class }}">{{ cat_path }}</span>
                             {% endif %}
                         {% endwith %}
                     </td>
                     <td class="desc-cell">{{ expense.description }}</td>
                     <td class="text-end">
-                        <span class="amount-text">¥{{ expense.amount|floatformat:2 }}</span>
+                        <span class="amount-text{% if expense.is_high_amount %} amount-text--high{% endif %}">¥{{ expense.amount|floatformat:2 }}</span>
                     </td>
                     <td class="text-center">
                         <div class="d-flex justify-content-center gap-1">

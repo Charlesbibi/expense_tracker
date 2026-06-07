@@ -283,6 +283,21 @@ body {
 .expense-table tbody tr:last-child td { border-bottom: none; }
 .expense-table tbody tr:hover { background: #f8faff; }
 
+/* ── 高额开支行高亮（≥500元） ───────────────────────────── */
+.expense-row--high-amount td {
+    background-color: #fff5f5 !important;
+}
+.expense-row--high-amount:hover td {
+    background-color: #ffeded !important;
+}
+.expense-row--high-amount td:first-child {
+    border-left: 3px solid #f87171;
+}
+.amount-text--high {
+    color: #b91c1c !important;
+    font-size: 1rem;
+}
+
 .date-badge {
     font-size: .8rem;
     color: var(--text-muted);
@@ -307,6 +322,19 @@ body {
     background: #faf5ff;
     color: #7e22ce;
 }
+
+/* ── 类别标签颜色（按一级类别分配） ─────────────────────── */
+/* 使用 .category-tag.cat-color-N 确保优先级覆盖 .category-tag.parent */
+.category-tag.cat-color-0 { background-color: #eef4ff; color: #1e40af; }  /* 蓝 */
+.category-tag.cat-color-1 { background-color: #edfcf2; color: #166534; }  /* 绿 */
+.category-tag.cat-color-2 { background-color: #fff7ed; color: #9a3412; }  /* 橙 */
+.category-tag.cat-color-3 { background-color: #faf5ff; color: #6b21a8; }  /* 紫 */
+.category-tag.cat-color-4 { background-color: #ecfeff; color: #0e7490; }  /* 青 */
+.category-tag.cat-color-5 { background-color: #fdf2f8; color: #9d174d; }  /* 粉 */
+.category-tag.cat-color-6 { background-color: #eef2ff; color: #3730a3; }  /* 靛 */
+.category-tag.cat-color-7 { background-color: #fefce8; color: #854d0e; }  /* 黄棕 */
+.category-tag.cat-color-8 { background-color: #fdf2f8; color: #be185d; }  /* 玫红 */
+.category-tag.cat-color-9 { background-color: #ecfdf5; color: #065f46; }  /* 墨绿 */
 
 .desc-cell {
     color: var(--text);

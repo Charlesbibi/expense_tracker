@@ -119,9 +119,40 @@ def expense_list(request):
         query_params['month'] = month
     filter_query_string = query_params.urlencode()
 
+    # 给当前页每条记录打上高额标记（≥500元），避免模板中 Decimal 类型比较不稳定
+    from decimal import Decimal as _Decimal
+    HIGH_AMOUNT_THRESHOLD = _Decimal('500')
+    expenses_list = list(page_obj.object_list)
+    for exp in expenses_list:
+        exp.is_high_amount = exp.amount >= HIGH_AMOUNT_THRESHOLD
+
+    # 给每条记录挂上类别颜色 class（按一级类别分配不同颜色）
+    # 预定义一组低饱和色的 class 名称，与 custom.css 中 .cat-color-N 对应
+    CAT_COLOR_CLASSES = [
+        'cat-color-0',  # 蓝
+        'cat-color-1',  # 绿
+        'cat-color-2',  # 橙
+        'cat-color-3',  # 紫
+        'cat-color-4',  # 青
+        'cat-color-5',  # 粉
+        'cat-color-6',  # 靛
+        'cat-color-7',  # 茶
+        'cat-color-8',  # 玫红
+        'cat-color-9',  # 墨绿
+    ]
+    # 查询所有一级类别，按 id 稳定排序
+    top_categories = ExpenseCategory.objects.filter(parent=None).order_by('id')
+    cat_color_map = {}
+    for i, cat in enumerate(top_categories):
+        cat_color_map[cat.name] = CAT_COLOR_CLASSES[i % len(CAT_COLOR_CLASSES)]
+    # 为每条 expense 挂载 cat_color_class
+    for exp in expenses_list:
+        top_name = exp.category.parent.name if exp.category.parent else exp.category.name
+        exp.cat_color_class = cat_color_map.get(top_name, 'cat-color-0')
+
     context = {
         'page_obj':            page_obj,
-        'expenses':            page_obj.object_list,
+        'expenses':            expenses_list,
         'total_expense':       total_expense,
         'total_count':         total_count,
         'latest_date':         latest_date,

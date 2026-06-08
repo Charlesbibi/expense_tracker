@@ -39,7 +39,7 @@ class Expense(models.Model):
         db_table = 'expense'
         verbose_name = '开支'
         verbose_name_plural = '开支'
-        ordering = ['-date']
+        ordering = ['-date', '-id']
 
     def __str__(self):
         return f"{self.date} - {self.category.get_full_path()}: ¥{self.amount}"

@@ -15,4 +15,5 @@ urlpatterns = [
     path('api/categories/', views.get_categories_api, name='api_categories'),
     path('api/visualizations/', views.visualizations_api, name='api_visualizations'),
     path('api/monthly-analysis/', views.monthly_analysis_api, name='api_monthly_analysis'),
+    path('api/monthly-analysis/category-detail/', views.category_detail_api, name='api_category_detail'),
 ]

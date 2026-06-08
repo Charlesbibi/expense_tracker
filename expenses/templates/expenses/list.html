@@ -407,7 +407,7 @@
 
 <!-- 月度开支分析弹窗 -->
 <div class="modal fade" id="monthlyAnalysisModal" tabindex="-1" aria-labelledby="monthlyAnalysisModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content viz-modal-content">
             <div class="modal-header viz-modal-header">
                 <h5 class="modal-title" id="monthlyAnalysisModalLabel">
@@ -416,13 +416,38 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
             <div class="modal-body viz-modal-body">
-                <div class="viz-modal-card h-100">
+                <!-- 图表卡片 -->
+                <div class="viz-modal-card">
                     <div class="viz-modal-card__header">
                         <span><i class="bi bi-bar-chart me-2 text-primary"></i>分类开支占比</span>
-                        <span class="badge bg-primary-subtle text-primary" id="analysisModalPeriod">2026年6月</span>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- 图表类型切换按钮组 -->
+                            <div class="chart-type-toggle" id="chartTypeToggle">
+                                <button type="button" class="chart-type-btn active" data-type="bar">
+                                    <i class="bi bi-bar-chart-fill"></i> 柱状图
+                                </button>
+                                <button type="button" class="chart-type-btn" data-type="doughnut">
+                                    <i class="bi bi-pie-chart-fill"></i> 饼图
+                                </button>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary" id="analysisModalPeriod">2026年6月</span>
+                        </div>
                     </div>
-                    <div class="viz-modal-card__body flex-fill">
+                    <div class="viz-modal-card__body">
                         <canvas id="monthlyAnalysisChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 分类明细面板（初始隐藏） -->
+                <div class="viz-detail-panel d-none" id="analysisDetailPanel">
+                    <div class="viz-detail-panel__header">
+                        <span id="analysisDetailTitle"><i class="bi bi-list-ul me-1"></i>分类明细</span>
+                        <button type="button" class="btn-close-detail" id="btnCloseDetail">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="viz-detail-panel__body">
+                        <div id="analysisDetailContent"></div>
                     </div>
                 </div>
             </div>
@@ -789,32 +814,48 @@ function openEditModal(expenseId) {
     modal.show();
 }
 
-// 提交编辑表单
 // ─── 月度开支分析弹窗 ───────────────────────────────────────
 
+const PALETTE = [
+    '#4f81ff','#f6753a','#22c55e','#a855f7','#eab308',
+    '#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1'
+];
+
 let monthlyAnalysisChartInstance = null;
+let currentChartType = 'bar';
+let currentAnalysisData = null;
+let currentYear = null;
+let currentMonth = null;
+let isFetchingDetail = false;  // 防重复点击
 
 const monthlyAnalysisModal = document.getElementById('monthlyAnalysisModal');
 if (monthlyAnalysisModal) {
     monthlyAnalysisModal.addEventListener('show.bs.modal', function () {
         const yearSelect = document.getElementById('yearSelect');
         const monthSelect = document.getElementById('monthSelect');
-        const year = yearSelect ? yearSelect.value || new Date().getFullYear() : new Date().getFullYear();
-        const month = monthSelect ? monthSelect.value || (new Date().getMonth() + 1) : (new Date().getMonth() + 1);
+        currentYear = yearSelect ? yearSelect.value || new Date().getFullYear() : new Date().getFullYear();
+        currentMonth = monthSelect ? monthSelect.value || (new Date().getMonth() + 1) : (new Date().getMonth() + 1);
+
+        // 重置状态
+        currentChartType = 'bar';
+        currentAnalysisData = null;
+        updateToggleButtons();
+        document.getElementById('analysisDetailPanel').classList.add('d-none');
 
         // 更新副标题
         const periodEl = document.getElementById('analysisModalPeriod');
         if (periodEl) {
-            periodEl.textContent = `${year}年${month}月`;
+            periodEl.textContent = `${currentYear}年${currentMonth}月`;
         }
 
         // 加载数据
-        fetch(`{% url "expenses:api_monthly_analysis" %}?year=${year}&month=${month}`, {
+        fetch(`{% url "expenses:api_monthly_analysis" %}?year=${currentYear}&month=${currentMonth}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(data => {
-            renderMonthlyAnalysisChart(data.categories, data.amounts);
+            currentAnalysisData = data;
+            renderChart(data.categories, data.amounts);
         })
         .catch(() => {
             // 静默失败
@@ -826,10 +867,36 @@ if (monthlyAnalysisModal) {
             monthlyAnalysisChartInstance.destroy();
             monthlyAnalysisChartInstance = null;
         }
+        currentAnalysisData = null;
+        currentChartType = 'bar';
+        updateToggleButtons();
+        document.getElementById('analysisDetailPanel').classList.add('d-none');
     });
 }
 
-function renderMonthlyAnalysisChart(categories, amounts) {
+// 图表类型切换
+const chartTypeToggle = document.getElementById('chartTypeToggle');
+if (chartTypeToggle) {
+    chartTypeToggle.addEventListener('click', function(e) {
+        const btn = e.target.closest('.chart-type-btn');
+        if (!btn) return;
+        currentChartType = btn.dataset.type;
+        updateToggleButtons();
+        if (currentAnalysisData) {
+            // 切换图表类型时隐藏明细面板
+            document.getElementById('analysisDetailPanel').classList.add('d-none');
+            renderChart(currentAnalysisData.categories, currentAnalysisData.amounts);
+        }
+    });
+}
+
+function updateToggleButtons() {
+    document.querySelectorAll('#chartTypeToggle .chart-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === currentChartType);
+    });
+}
+
+function renderChart(categories, amounts) {
     const ctx = document.getElementById('monthlyAnalysisChart');
     if (!ctx) return;
 
@@ -837,31 +904,52 @@ function renderMonthlyAnalysisChart(categories, amounts) {
         monthlyAnalysisChartInstance.destroy();
     }
 
-    // 如果没有数据
     if (!categories || categories.length === 0) {
-        // 可以显示空状态，这里先简单留空
         return;
     }
 
+    const isBar = currentChartType === 'bar';
+    const colors = categories.map((_, i) => PALETTE[i % PALETTE.length]);
+
     monthlyAnalysisChartInstance = new Chart(ctx, {
-        type: 'bar',
+        type: currentChartType,
         data: {
             labels: categories,
             datasets: [{
                 label: '支出金额',
                 data: amounts,
-                backgroundColor: 'rgba(79, 129, 255, 0.75)',
-                borderColor: 'rgba(79, 129, 255, 1)',
-                borderWidth: 1,
-                borderRadius: 6,
-                borderSkipped: false,
+                backgroundColor: isBar ? colors.map(c => c + 'cc') : colors,
+                borderColor: isBar ? colors : '#ffffff',
+                borderWidth: isBar ? 1 : 3,
+                borderRadius: isBar ? 6 : 0,
+                borderSkipped: isBar ? false : undefined,
+                hoverOffset: isBar ? undefined : 12,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            ...(currentChartType === 'doughnut' ? { cutout: '58%' } : {}),
+            onClick: function(event, elements, chart) {
+                if (elements.length > 0 && !isFetchingDetail) {
+                    const idx = elements[0].index;
+                    const category = chart.data.labels[idx];
+                    fetchAndShowCategoryDetail(category);
+                }
+            },
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: currentChartType === 'doughnut',
+                    position: 'right',
+                    align: 'center',
+                    labels: {
+                        padding: 8,
+                        boxWidth: 10,
+                        font: { size: 11 },
+                        usePointStyle: true,
+                        pointStyleWidth: 8,
+                    }
+                },
                 tooltip: {
                     backgroundColor: 'rgba(30, 58, 138, 0.9)',
                     padding: 12,
@@ -870,34 +958,120 @@ function renderMonthlyAnalysisChart(categories, amounts) {
                     bodyFont: { size: 13 },
                     callbacks: {
                         label: function(context) {
-                            return '¥' + context.parsed.y.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            if (currentChartType === 'doughnut' && context.dataset.data) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = ((context.raw / total) * 100).toFixed(1);
+                                return ' ¥' + context.raw.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) + ' (' + pct + '%)';
+                            }
+                            return '¥' + context.raw.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                         }
                     }
                 }
             },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: {
-                        font: { size: 11 },
-                        color: '#64748b',
-                        maxRotation: 45,
-                        minRotation: 0
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#f1f5f9' },
-                    ticks: {
-                        font: { size: 11 },
-                        color: '#94a3b8',
-                        callback: function(value) {
-                            return '¥' + value.toLocaleString('zh-CN');
+            ...(isBar ? {
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 11 },
+                            color: '#64748b',
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: {
+                            font: { size: 11 },
+                            color: '#94a3b8',
+                            callback: function(value) {
+                                return '¥' + value.toLocaleString('zh-CN');
+                            }
                         }
                     }
                 }
-            }
+            } : {})
         }
+    });
+}
+
+// 获取并展示分类明细
+function fetchAndShowCategoryDetail(category) {
+    isFetchingDetail = true;
+    fetch(`{% url "expenses:api_category_detail" %}?year=${currentYear}&month=${currentMonth}&category=${encodeURIComponent(category)}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(data => {
+        renderDetailPanel(data);
+    })
+    .catch(() => {
+        const panel = document.getElementById('analysisDetailPanel');
+        const content = document.getElementById('analysisDetailContent');
+        const title = document.getElementById('analysisDetailTitle');
+        title.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>加载失败';
+        content.innerHTML = '<p class="text-danger text-center py-3">明细加载失败，请重试</p>';
+        panel.classList.remove('d-none');
+    })
+    .finally(() => {
+        isFetchingDetail = false;
+    });
+}
+
+function renderDetailPanel(data) {
+    const panel = document.getElementById('analysisDetailPanel');
+    const title = document.getElementById('analysisDetailTitle');
+    const content = document.getElementById('analysisDetailContent');
+
+    title.innerHTML = '<i class="bi bi-list-ul me-1"></i>' + data.category + ' — 明细';
+
+    if (!data.expenses || data.expenses.length === 0) {
+        content.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><span>该分类暂无明细记录</span></div>';
+    } else {
+        content.innerHTML = `
+            <div class="table-responsive">
+                <table class="expense-table table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width:120px">日期</th>
+                            <th>描述</th>
+                            <th class="text-end" style="width:130px">金额</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.expenses.map(e => `
+                            <tr>
+                                <td class="text-center"><span class="date-badge">${e.date}</span></td>
+                                <td class="desc-cell">${e.description || '—'}</td>
+                                <td class="text-end"><span class="amount-text">¥${e.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // 底部合计
+    const totalHtml = `
+        <div class="viz-detail-panel__total">
+            合计：<strong>¥${data.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</strong>
+        </div>
+    `;
+    // 移除旧 total 再追加
+    const oldTotal = content.parentElement.querySelector('.viz-detail-panel__total');
+    if (oldTotal) oldTotal.remove();
+    content.insertAdjacentHTML('afterend', totalHtml);
+
+    panel.classList.remove('d-none');
+}
+
+// 关闭明细面板
+const btnCloseDetail = document.getElementById('btnCloseDetail');
+if (btnCloseDetail) {
+    btnCloseDetail.addEventListener('click', function() {
+        document.getElementById('analysisDetailPanel').classList.add('d-none');
     });
 }
 

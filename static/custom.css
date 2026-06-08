@@ -1229,7 +1229,8 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 280px;
+    min-height: 340px;
+    height: auto;
 }
 .viz-modal-card__header {
     display: flex;
@@ -1599,5 +1600,109 @@ body {
 }
 .btn-analysis i {
     font-size: .95rem;
+}
+
+/* ── 图表类型切换按钮 ─────────────────────────────────── */
+.chart-type-toggle {
+    display: inline-flex;
+    background: var(--primary-light);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+    border: 1px solid rgba(79, 129, 255, 0.12);
+}
+.chart-type-btn {
+    padding: 5px 14px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all .22s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.chart-type-btn.active {
+    background: #fff;
+    color: var(--primary);
+    box-shadow: 0 1px 4px rgba(79, 129, 255, 0.18), 0 0 0 1px rgba(79, 129, 255, 0.08);
+}
+.chart-type-btn:hover:not(.active) {
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.6);
+}
+
+/* ── 分类明细面板 ─────────────────────────────────────── */
+.viz-detail-panel {
+    margin-top: 16px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    animation: detailSlideIn .3s ease;
+}
+@keyframes detailSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.viz-detail-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #fafbff;
+    border-bottom: 1px solid var(--border);
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+.viz-detail-panel__body {
+    padding: 12px 16px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.viz-detail-panel__total {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: .88rem;
+    color: var(--text);
+    background: #fafbff;
+}
+.viz-detail-panel__total strong {
+    font-size: 1rem;
+    color: var(--primary);
+    font-weight: 700;
+}
+.btn-close-detail {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all .22s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+.btn-close-detail:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+    transform: scale(1.08);
+}
+.btn-close-detail:active {
+    transform: scale(0.95);
 }
 

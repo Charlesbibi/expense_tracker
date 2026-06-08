@@ -67,6 +67,64 @@ def monthly_analysis_api(request):
     })
 
 
+def category_detail_api(request):
+    """API：获取某月某分类的全部费用明细（用于弹窗点击展开）"""
+    now = datetime.now()
+    year = request.GET.get('year', str(now.year))
+    month = request.GET.get('month', str(now.month))
+    category_name = request.GET.get('category', '')
+    try:
+        year = int(year)
+        month = int(month)
+    except (ValueError, TypeError):
+        year, month = now.year, now.month
+
+    base_filter = {'date__year': year, 'date__month': month}
+
+    # 解析 "父类 > 子类" 格式
+    if ' > ' in category_name:
+        parts = category_name.split(' > ')
+        parent_name = parts[0].strip()
+        child_name = parts[1].strip()
+        expenses_qs = Expense.objects.filter(
+            **base_filter,
+            category__name=child_name,
+            category__parent__name=parent_name,
+        )
+    else:
+        # 一级分类（无父类）
+        expenses_qs = Expense.objects.filter(
+            **base_filter,
+            category__name=category_name,
+            category__parent__isnull=True,
+        )
+
+    expenses_qs = expenses_qs.select_related(
+        'category', 'category__parent'
+    ).order_by('-date')
+
+    total = sum(e.amount for e in expenses_qs)
+
+    expenses_data = [
+        {
+            'id': e.id,
+            'date': e.date.strftime('%Y-%m-%d'),
+            'amount': float(e.amount),
+            'description': e.description,
+        }
+        for e in expenses_qs
+    ]
+
+    return JsonResponse({
+        'category': category_name,
+        'year': year,
+        'month': month,
+        'count': len(expenses_data),
+        'total': float(total),
+        'expenses': expenses_data,
+    })
+
+
 def home(request):
     """主页，重定向到开支列表"""
     return redirect('expenses:list')
@@ -74,7 +132,7 @@ def home(request):
 
 def expense_list(request):
     """开支列表页面（带分页）"""
-    expenses_qs = Expense.objects.select_related('category', 'category__parent').all()
+    expenses_qs = Expense.objects.select_related('category', 'category__parent').all().order_by('-date', '-id')
 
     # 按年/月筛选，默认当前年月
     now = datetime.now()
@@ -90,8 +148,8 @@ def expense_list(request):
     total_count   = expenses_qs.count()
     latest_date   = expenses_qs.values_list('date', flat=True).first()   # 已按 -date 排序
 
-    # 分页：每页 15 条
-    paginator   = Paginator(expenses_qs, 15)
+    # 分页：每页 25 条
+    paginator   = Paginator(expenses_qs, 25)
     page_number = request.GET.get('page', 1)
     try:
         page_obj = paginator.page(page_number)

@@ -867,6 +867,9 @@ if (monthlyAnalysisModal) {
             monthlyAnalysisChartInstance.destroy();
             monthlyAnalysisChartInstance = null;
         }
+        // 清理饼图尺寸类
+        const cardBody = document.querySelector('#monthlyAnalysisModal .viz-modal-card__body');
+        if (cardBody) cardBody.classList.remove('doughnut-chart');
         currentAnalysisData = null;
         currentChartType = 'bar';
         updateToggleButtons();
@@ -902,6 +905,12 @@ function renderChart(categories, amounts) {
 
     if (monthlyAnalysisChartInstance) {
         monthlyAnalysisChartInstance.destroy();
+    }
+
+    // 饼图/柱状图切换时调整容器尺寸类
+    const cardBody = ctx.closest('.viz-modal-card__body');
+    if (cardBody) {
+        cardBody.classList.toggle('doughnut-chart', currentChartType === 'doughnut');
     }
 
     if (!categories || categories.length === 0) {

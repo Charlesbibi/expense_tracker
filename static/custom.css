@@ -1255,6 +1255,19 @@ body {
     height: 100% !important;
 }
 
+/* ── 饼图专用：限制最大尺寸，居中显示 ───────────────────── */
+.viz-modal-card__body.doughnut-chart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.viz-modal-card__body.doughnut-chart canvas {
+    max-width: 340px !important;
+    max-height: 340px !important;
+    width: auto !important;
+    height: auto !important;
+}
+
 .report-card__title {
     font-size: 0.95rem;
     font-weight: 600;

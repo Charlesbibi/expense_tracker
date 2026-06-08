@@ -148,8 +148,8 @@ def expense_list(request):
     total_count   = expenses_qs.count()
     latest_date   = expenses_qs.values_list('date', flat=True).first()   # 已按 -date 排序
 
-    # 分页：每页 25 条
-    paginator   = Paginator(expenses_qs, 25)
+    # 分页：每页 20 条
+    paginator   = Paginator(expenses_qs, 20)
     page_number = request.GET.get('page', 1)
     try:
         page_obj = paginator.page(page_number)

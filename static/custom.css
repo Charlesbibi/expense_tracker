@@ -1074,14 +1074,6 @@ body {
 }
 .cat-node--secondary:hover { background: #faf8ff; }
 
-/* ─── 报表页热力图 ─────────────────────────────────── */
-.heatmap-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 20px 0;
-}
-
 /* ─── 报表卡片样式 ───────────────────────────────── */
 .report-card {
     background: var(--surface);
@@ -1399,6 +1391,33 @@ body {
 .report-card--ranking {
     border: 1px solid var(--border);
     padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+.report-card--ranking .report-card__header {
+    flex-shrink: 0;
+}
+.report-card--ranking .report-card__body {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 12px;
+}
+
+/* 排行列表滚动条美化 */
+.report-card--ranking .report-card__body::-webkit-scrollbar {
+    width: 5px;
+}
+.report-card--ranking .report-card__body::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+}
+.report-card--ranking .report-card__body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.report-card--ranking .report-card__body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* 排行表格 */
@@ -1717,5 +1736,160 @@ body {
 }
 .btn-close-detail:active {
     transform: scale(0.95);
+}
+
+/* ── 月环比对比面板 ──────────────────────────────────── */
+.comparison-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+.comparison-summary__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.comparison-summary__label {
+    font-size: .72rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.comparison-summary__amount {
+    font-size: 1.05rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.comparison-summary__amount--prev {
+    color: var(--text-muted);
+}
+.comparison-summary__amount--curr {
+    color: var(--primary);
+}
+.comparison-summary__arrow {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+.comparison-summary__change {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: .85rem;
+    font-weight: 600;
+}
+.comparison-summary__change.change-up {
+    background: #fef2f2;
+    color: #dc2626;
+}
+.comparison-summary__change.change-down {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+.comparison-summary__change.change-neutral {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* 环比列表容器 */
+.comparison-list {
+    max-height: 360px;
+    overflow-y: auto;
+}
+.comparison-list::-webkit-scrollbar {
+    width: 5px;
+}
+.comparison-list::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+}
+.comparison-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.comparison-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* 环比对比表格 */
+.comparison-table {
+    display: flex;
+    flex-direction: column;
+}
+.comparison-table__header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: #f8faff;
+    border-bottom: 2px solid var(--border);
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.comparison-table__row {
+    display: flex;
+    align-items: center;
+    padding: 11px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .15s ease;
+    font-size: .85rem;
+}
+.comparison-table__row:hover {
+    background: #f8faff;
+}
+.comparison-table__row:last-child {
+    border-bottom: none;
+}
+.comparison-table__col {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+.comparison-table__col--name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.comparison-table__col--prev {
+    width: 120px;
+    text-align: right;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.comparison-table__col--curr {
+    width: 120px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--text);
+}
+.comparison-table__col--change {
+    width: 160px;
+    text-align: right;
+    font-weight: 600;
+    font-size: .8rem;
+}
+.comparison-table__col--change.change-up {
+    color: #dc2626;
+}
+.comparison-table__col--change.change-down {
+    color: #16a34a;
+}
+.comparison-table__col--change.change-neutral {
+    color: #94a3b8;
 }
 

@@ -125,6 +125,95 @@ def category_detail_api(request):
     })
 
 
+
+def monthly_comparison_api(request):
+    """API：月环比对比 — 当月 vs 上月各分类支出"""
+    from datetime import date, timedelta
+
+    now = date.today()
+    year_str = request.GET.get('year', str(now.year))
+    month_str = request.GET.get('month', str(now.month))
+    try:
+        year = int(year_str)
+        month = int(month_str)
+    except (ValueError, TypeError):
+        year, month = now.year, now.month
+
+    # 计算上月
+    if month == 1:
+        prev_year = year - 1
+        prev_month = 12
+    else:
+        prev_year = year
+        prev_month = month - 1
+
+    def get_category_totals(y, m):
+        """查询某年某月各分类汇总，返回 {label: total}"""
+        data = Expense.objects.filter(
+            date__year=y, date__month=m
+        ).values('category__name', 'category__parent__name').annotate(
+            total=Sum('amount')
+        )
+        result = {}
+        for item in data:
+            if item['category__parent__name']:
+                label = f"{item['category__parent__name']} > {item['category__name']}"
+            else:
+                label = item['category__name']
+            result[label] = float(item['total'])
+        return result
+
+    this_map = get_category_totals(year, month)
+    last_map = get_category_totals(prev_year, prev_month)
+
+    # 合并所有分类名，按当月金额降序
+    all_categories = set(this_map.keys()) | set(last_map.keys())
+
+    categories = []
+    for cat in all_categories:
+        this_val = this_map.get(cat, 0)
+        last_val = last_map.get(cat, 0)
+        change = this_val - last_val
+        if last_val > 0:
+            change_pct = round((change / last_val) * 100, 1)
+        elif this_val > 0:
+            change_pct = 100.0  # 上月为0，本月有支出
+        else:
+            change_pct = 0.0
+        categories.append({
+            'name': cat,
+            'this_month': round(this_val, 2),
+            'last_month': round(last_val, 2),
+            'change': round(change, 2),
+            'change_pct': change_pct,
+        })
+
+    # 按当月金额降序排列
+    categories.sort(key=lambda x: x['this_month'], reverse=True)
+
+    this_total = sum(c['this_month'] for c in categories)
+    last_total = sum(c['last_month'] for c in categories)
+    total_change = this_total - last_total
+    if last_total > 0:
+        total_change_pct = round((total_change / last_total) * 100, 1)
+    elif this_total > 0:
+        total_change_pct = 100.0
+    else:
+        total_change_pct = 0.0
+
+    return JsonResponse({
+        'year': year,
+        'month': month,
+        'prev_year': prev_year,
+        'prev_month': prev_month,
+        'categories': categories,
+        'this_month_total': round(this_total, 2),
+        'last_month_total': round(last_total, 2),
+        'total_change': round(total_change, 2),
+        'total_change_pct': total_change_pct,
+    })
+
+
 def home(request):
     """主页，重定向到开支列表"""
     return redirect('expenses:list')

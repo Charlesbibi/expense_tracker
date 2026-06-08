@@ -450,6 +450,25 @@
                         <div id="analysisDetailContent"></div>
                     </div>
                 </div>
+
+                <!-- 月环比对比面板 -->
+                <div class="viz-modal-card mt-4" id="comparisonCard">
+                    <div class="viz-modal-card__header">
+                        <span><i class="bi bi-arrow-left-right me-2 text-primary"></i>月环比对比</span>
+                        <span class="text-muted small" id="comparisonPeriod"></span>
+                    </div>
+                    <div class="viz-modal-card__body" style="padding:0">
+                        <!-- 加载中 -->
+                        <div id="comparisonLoading" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2 text-muted small">加载环比数据…</span>
+                        </div>
+                        <!-- 总览条 -->
+                        <div id="comparisonSummary" class="d-none comparison-summary"></div>
+                        <!-- 分类对比列表 -->
+                        <div id="comparisonList" class="comparison-list d-none"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -842,13 +861,18 @@ if (monthlyAnalysisModal) {
         updateToggleButtons();
         document.getElementById('analysisDetailPanel').classList.add('d-none');
 
+        // 重置环比面板
+        document.getElementById('comparisonLoading').classList.remove('d-none');
+        document.getElementById('comparisonSummary').classList.add('d-none');
+        document.getElementById('comparisonList').classList.add('d-none');
+
         // 更新副标题
         const periodEl = document.getElementById('analysisModalPeriod');
         if (periodEl) {
             periodEl.textContent = `${currentYear}年${currentMonth}月`;
         }
 
-        // 加载数据
+        // 加载图表数据
         fetch(`{% url "expenses:api_monthly_analysis" %}?year=${currentYear}&month=${currentMonth}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
@@ -860,6 +884,9 @@ if (monthlyAnalysisModal) {
         .catch(() => {
             // 静默失败
         });
+
+        // 加载环比数据
+        fetchComparison();
     });
 
     monthlyAnalysisModal.addEventListener('hidden.bs.modal', function () {
@@ -1026,6 +1053,97 @@ function fetchAndShowCategoryDetail(category) {
     .finally(() => {
         isFetchingDetail = false;
     });
+}
+
+// ─── 月环比对比 ─────────────────────────────────────────────
+let comparisonData = null;
+
+function fetchComparison() {
+    const loadingEl = document.getElementById('comparisonLoading');
+    const summaryEl = document.getElementById('comparisonSummary');
+    const listEl = document.getElementById('comparisonList');
+
+    loadingEl.classList.remove('d-none');
+    summaryEl.classList.add('d-none');
+    listEl.classList.add('d-none');
+
+    fetch(`{% url "expenses:api_monthly_comparison" %}?year=${currentYear}&month=${currentMonth}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(data => {
+        comparisonData = data;
+        renderComparison(data);
+    })
+    .catch(() => {
+        loadingEl.innerHTML = '<span class="text-muted small">环比数据加载失败</span>';
+    });
+}
+
+function renderComparison(data) {
+    const loadingEl = document.getElementById('comparisonLoading');
+    const summaryEl = document.getElementById('comparisonSummary');
+    const listEl = document.getElementById('comparisonList');
+    const periodEl = document.getElementById('comparisonPeriod');
+
+    loadingEl.classList.add('d-none');
+    summaryEl.classList.remove('d-none');
+    listEl.classList.remove('d-none');
+
+    // 时期标签
+    if (periodEl) {
+        periodEl.textContent = `${data.year}年${data.month}月 vs ${data.prev_year}年${data.prev_month}月`;
+    }
+
+    // 总览条
+    const totalChangeClass = data.total_change > 0 ? 'change-up' : (data.total_change < 0 ? 'change-down' : 'change-neutral');
+    const totalArrow = data.total_change > 0 ? '↑' : (data.total_change < 0 ? '↓' : '→');
+    summaryEl.innerHTML = `
+        <div class="comparison-summary__item">
+            <span class="comparison-summary__label">${data.prev_year}年${data.prev_month}月</span>
+            <span class="comparison-summary__amount comparison-summary__amount--prev">¥${data.last_month_total.toLocaleString('zh-CN', {minimumFractionDigits:2})}</span>
+        </div>
+        <div class="comparison-summary__arrow">→</div>
+        <div class="comparison-summary__item">
+            <span class="comparison-summary__label">${data.year}年${data.month}月</span>
+            <span class="comparison-summary__amount comparison-summary__amount--curr">¥${data.this_month_total.toLocaleString('zh-CN', {minimumFractionDigits:2})}</span>
+        </div>
+        <div class="comparison-summary__change ${totalChangeClass}">
+            <span>${totalArrow} ¥${Math.abs(data.total_change).toLocaleString('zh-CN', {minimumFractionDigits:2})}</span>
+            <span>(${data.total_change_pct >= 0 ? '+' : ''}${data.total_change_pct}%)</span>
+        </div>
+    `;
+
+    // 分类列表
+    const cats = data.categories;
+    if (cats.length === 0) {
+        listEl.innerHTML = '<div class="text-center text-muted py-4 small">暂无环比数据</div>';
+        return;
+    }
+
+    listEl.innerHTML = `
+        <div class="comparison-table">
+            <div class="comparison-table__header">
+                <span class="comparison-table__col comparison-table__col--name">分类</span>
+                <span class="comparison-table__col comparison-table__col--prev">上月</span>
+                <span class="comparison-table__col comparison-table__col--curr">本月</span>
+                <span class="comparison-table__col comparison-table__col--change">环比变化</span>
+            </div>
+            ${cats.map(cat => {
+                const cls = cat.change > 0 ? 'change-up' : (cat.change < 0 ? 'change-down' : 'change-neutral');
+                const arrow = cat.change > 0 ? '↑' : (cat.change < 0 ? '↓' : '→');
+                return `
+                <div class="comparison-table__row">
+                    <span class="comparison-table__col comparison-table__col--name" title="${cat.name}">${cat.name}</span>
+                    <span class="comparison-table__col comparison-table__col--prev">¥${cat.last_month.toLocaleString('zh-CN', {minimumFractionDigits:2})}</span>
+                    <span class="comparison-table__col comparison-table__col--curr">¥${cat.this_month.toLocaleString('zh-CN', {minimumFractionDigits:2})}</span>
+                    <span class="comparison-table__col comparison-table__col--change ${cls}">
+                        ${cat.last_month === 0 && cat.this_month === 0 ? '—' : `${arrow} ¥${Math.abs(cat.change).toLocaleString('zh-CN', {minimumFractionDigits:2})} (${cat.change_pct >= 0 ? '+' : ''}${cat.change_pct}%)`}
+                    </span>
+                </div>`;
+            }).join('')}
+        </div>
+    `;
 }
 
 function renderDetailPanel(data) {

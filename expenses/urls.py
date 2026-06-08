@@ -16,4 +16,5 @@ urlpatterns = [
     path('api/visualizations/', views.visualizations_api, name='api_visualizations'),
     path('api/monthly-analysis/', views.monthly_analysis_api, name='api_monthly_analysis'),
     path('api/monthly-analysis/category-detail/', views.category_detail_api, name='api_category_detail'),
+    path('api/monthly-comparison/', views.monthly_comparison_api, name='api_monthly_comparison'),
 ]

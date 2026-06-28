@@ -32,36 +32,62 @@ def get_categories_api(request):
 
 
 def monthly_analysis_api(request):
-    """API：按月获取分类开支数据（用于弹窗柱状图）"""
+    """API：按月获取分类开支数据（用于弹窗柱状图）
+    支持 level 参数：1=一级分类汇总，2=二级分类（默认）
+    """
     now = datetime.now()
     year = request.GET.get('year', str(now.year))
     month = request.GET.get('month', str(now.month))
+    level = request.GET.get('level', '2')
     try:
         year = int(year)
         month = int(month)
+        level = int(level)
     except (ValueError, TypeError):
         year, month = now.year, now.month
+        level = 2
 
-    # 按月筛选并按分类汇总
-    data = Expense.objects.filter(
-        date__year=year, date__month=month
-    ).values('category__name', 'category__parent__name').annotate(
-        total=Sum('amount')
-    ).order_by('-total')
+    # 按月筛选
+    base_qs = Expense.objects.filter(date__year=year, date__month=month)
 
     categories = []
     amounts = []
-    for item in data:
-        if item['category__parent__name']:
-            label = f"{item['category__parent__name']} > {item['category__name']}"
-        else:
-            label = item['category__name']
-        categories.append(label)
-        amounts.append(float(item['total']))
+
+    if level == 1:
+        # 一级分类汇总：对有父类的记录按父类汇总，无父类的按自身汇总
+        data = base_qs.values('category__name', 'category__parent__name').annotate(
+            total=Sum('amount')
+        )
+        # 先按一级分类聚合
+        level1_map = {}
+        for item in data:
+            if item['category__parent__name']:
+                key = item['category__parent__name']
+            else:
+                key = item['category__name']
+            level1_map[key] = level1_map.get(key, 0) + float(item['total'])
+        # 按金额降序排列
+        sorted_items = sorted(level1_map.items(), key=lambda x: x[1], reverse=True)
+        for name, total in sorted_items:
+            categories.append(name)
+            amounts.append(total)
+    else:
+        # 二级分类（默认）
+        data = base_qs.values('category__name', 'category__parent__name').annotate(
+            total=Sum('amount')
+        ).order_by('-total')
+        for item in data:
+            if item['category__parent__name']:
+                label = f"{item['category__parent__name']} > {item['category__name']}"
+            else:
+                label = item['category__name']
+            categories.append(label)
+            amounts.append(float(item['total']))
 
     return JsonResponse({
         'year': year,
         'month': month,
+        'level': level,
         'categories': categories,
         'amounts': amounts,
     })
@@ -80,6 +106,11 @@ def category_detail_api(request):
         year, month = now.year, now.month
 
     base_filter = {'date__year': year, 'date__month': month}
+    level = request.GET.get('level', '2')
+    try:
+        level = int(level)
+    except (ValueError, TypeError):
+        level = 2
 
     # 解析 "父类 > 子类" 格式
     if ' > ' in category_name:
@@ -91,8 +122,17 @@ def category_detail_api(request):
             category__name=child_name,
             category__parent__name=parent_name,
         )
+    elif level == 1:
+        # 一级分类视图：包含该一级分类本身及其所有子分类的记录
+        from django.db.models import Q
+        expenses_qs = Expense.objects.filter(
+            **base_filter,
+        ).filter(
+            Q(category__name=category_name, category__parent__isnull=True) |
+            Q(category__parent__name=category_name)
+        )
     else:
-        # 一级分类（无父类）
+        # 一级分类（无父类，二级视图下）
         expenses_qs = Expense.objects.filter(
             **base_filter,
             category__name=category_name,
@@ -127,17 +167,22 @@ def category_detail_api(request):
 
 
 def monthly_comparison_api(request):
-    """API：月环比对比 — 当月 vs 上月各分类支出"""
+    """API：月环比对比 — 当月 vs 上月各分类支出
+    支持 level 参数：1=一级分类汇总，2=二级分类（默认）
+    """
     from datetime import date, timedelta
 
     now = date.today()
     year_str = request.GET.get('year', str(now.year))
     month_str = request.GET.get('month', str(now.month))
+    level_str = request.GET.get('level', '2')
     try:
         year = int(year_str)
         month = int(month_str)
+        level = int(level_str)
     except (ValueError, TypeError):
         year, month = now.year, now.month
+        level = 2
 
     # 计算上月
     if month == 1:
@@ -155,12 +200,22 @@ def monthly_comparison_api(request):
             total=Sum('amount')
         )
         result = {}
-        for item in data:
-            if item['category__parent__name']:
-                label = f"{item['category__parent__name']} > {item['category__name']}"
-            else:
-                label = item['category__name']
-            result[label] = float(item['total'])
+        if level == 1:
+            # 一级分类汇总
+            for item in data:
+                if item['category__parent__name']:
+                    key = item['category__parent__name']
+                else:
+                    key = item['category__name']
+                result[key] = result.get(key, 0) + float(item['total'])
+        else:
+            # 二级分类
+            for item in data:
+                if item['category__parent__name']:
+                    label = f"{item['category__parent__name']} > {item['category__name']}"
+                else:
+                    label = item['category__name']
+                result[label] = float(item['total'])
         return result
 
     this_map = get_category_totals(year, month)
@@ -206,6 +261,7 @@ def monthly_comparison_api(request):
         'month': month,
         'prev_year': prev_year,
         'prev_month': prev_month,
+        'level': level,
         'categories': categories,
         'this_month_total': round(this_total, 2),
         'last_month_total': round(last_total, 2),

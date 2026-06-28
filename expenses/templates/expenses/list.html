@@ -421,6 +421,15 @@
                     <div class="viz-modal-card__header">
                         <span><i class="bi bi-bar-chart me-2 text-primary"></i>分类开支占比</span>
                         <div class="d-flex align-items-center gap-3">
+                            <!-- 分类层级切换按钮组 -->
+                            <div class="chart-type-toggle" id="categoryLevelToggle">
+                                <button type="button" class="chart-type-btn active" data-level="1">
+                                    <i class="bi bi-diagram-2"></i> 一级分类
+                                </button>
+                                <button type="button" class="chart-type-btn" data-level="2">
+                                    <i class="bi bi-diagram-3"></i> 二级分类
+                                </button>
+                            </div>
                             <!-- 图表类型切换按钮组 -->
                             <div class="chart-type-toggle" id="chartTypeToggle">
                                 <button type="button" class="chart-type-btn active" data-type="bar">
@@ -842,6 +851,7 @@ const PALETTE = [
 
 let monthlyAnalysisChartInstance = null;
 let currentChartType = 'bar';
+let currentCategoryLevel = 1;  // 1=一级分类，2=二级分类
 let currentAnalysisData = null;
 let currentYear = null;
 let currentMonth = null;
@@ -857,8 +867,10 @@ if (monthlyAnalysisModal) {
 
         // 重置状态
         currentChartType = 'bar';
+        currentCategoryLevel = 1;
         currentAnalysisData = null;
         updateToggleButtons();
+        updateLevelToggleButtons();
         document.getElementById('analysisDetailPanel').classList.add('d-none');
 
         // 重置环比面板
@@ -873,17 +885,7 @@ if (monthlyAnalysisModal) {
         }
 
         // 加载图表数据
-        fetch(`{% url "expenses:api_monthly_analysis" %}?year=${currentYear}&month=${currentMonth}`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-        .then(data => {
-            currentAnalysisData = data;
-            renderChart(data.categories, data.amounts);
-        })
-        .catch(() => {
-            // 静默失败
-        });
+        fetchAnalysisData();
 
         // 加载环比数据
         fetchComparison();
@@ -899,8 +901,49 @@ if (monthlyAnalysisModal) {
         if (cardBody) cardBody.classList.remove('doughnut-chart');
         currentAnalysisData = null;
         currentChartType = 'bar';
+        currentCategoryLevel = 1;
         updateToggleButtons();
+        updateLevelToggleButtons();
         document.getElementById('analysisDetailPanel').classList.add('d-none');
+    });
+}
+
+// 分类层级切换
+const categoryLevelToggle = document.getElementById('categoryLevelToggle');
+if (categoryLevelToggle) {
+    categoryLevelToggle.addEventListener('click', function(e) {
+        const btn = e.target.closest('.chart-type-btn');
+        if (!btn) return;
+        const newLevel = parseInt(btn.dataset.level);
+        if (newLevel === currentCategoryLevel) return;
+        currentCategoryLevel = newLevel;
+        updateLevelToggleButtons();
+        // 隐藏明细面板
+        document.getElementById('analysisDetailPanel').classList.add('d-none');
+        // 重新获取图表数据 + 环比数据
+        fetchAnalysisData();
+        fetchComparison();
+    });
+}
+
+function updateLevelToggleButtons() {
+    document.querySelectorAll('#categoryLevelToggle .chart-type-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.level) === currentCategoryLevel);
+    });
+}
+
+// 获取分析数据
+function fetchAnalysisData() {
+    fetch(`{% url "expenses:api_monthly_analysis" %}?year=${currentYear}&month=${currentMonth}&level=${currentCategoryLevel}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(data => {
+        currentAnalysisData = data;
+        renderChart(data.categories, data.amounts);
+    })
+    .catch(() => {
+        // 静默失败
     });
 }
 
@@ -1035,7 +1078,7 @@ function renderChart(categories, amounts) {
 // 获取并展示分类明细
 function fetchAndShowCategoryDetail(category) {
     isFetchingDetail = true;
-    fetch(`{% url "expenses:api_category_detail" %}?year=${currentYear}&month=${currentMonth}&category=${encodeURIComponent(category)}`, {
+    fetch(`{% url "expenses:api_category_detail" %}?year=${currentYear}&month=${currentMonth}&category=${encodeURIComponent(category)}&level=${currentCategoryLevel}`, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
@@ -1067,7 +1110,7 @@ function fetchComparison() {
     summaryEl.classList.add('d-none');
     listEl.classList.add('d-none');
 
-    fetch(`{% url "expenses:api_monthly_comparison" %}?year=${currentYear}&month=${currentMonth}`, {
+    fetch(`{% url "expenses:api_monthly_comparison" %}?year=${currentYear}&month=${currentMonth}&level=${currentCategoryLevel}`, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })

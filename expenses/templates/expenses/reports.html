@@ -101,20 +101,6 @@
     </div>
 </div>
 
-<!-- 月度趋势图 -->
-<div class="report-card report-card--chart mb-4">
-    <div class="report-card__header">
-        <h3 class="report-card__title">
-            <i class="bi bi-bar-chart-fill me-2"></i>月度支出趋势
-        </h3>
-        <button type="button" class="btn-report-header" data-bs-toggle="modal" data-bs-target="#vizModal" data-year="{{ year }}">
-            <i class="bi bi-graph-up-arrow"></i>月度趋势分析
-        </button>
-    </div>
-    <div class="report-card__body">
-        <canvas id="monthlyTrendChart" style="max-height: 300px;"></canvas>
-    </div>
-</div>
 
 
 
@@ -177,30 +163,14 @@
 
                 <!-- 图表区域 -->
                 <div id="vizContent" style="display:none;">
-                    <div class="row g-4">
-                        <!-- 月度柱状图 -->
-                        <div class="col-lg-7">
-                            <div class="viz-modal-card h-100">
-                                <div class="viz-modal-card__header">
-                                    <span><i class="bi bi-bar-chart me-2 text-primary"></i>月度支出趋势</span>
-                                    <span class="badge bg-primary-subtle text-primary" id="vizYear1"></span>
-                                </div>
-                                <div class="viz-modal-card__body flex-fill">
-                                    <canvas id="vizMonthlyChart"></canvas>
-                                </div>
-                            </div>
+                    <!-- 分类饼图 -->
+                    <div class="viz-modal-card h-100">
+                        <div class="viz-modal-card__header">
+                            <span><i class="bi bi-pie-chart me-2 text-primary"></i>年度二级分类占比</span>
+                            <span class="badge bg-primary-subtle text-primary" id="vizYear2"></span>
                         </div>
-                        <!-- 分类饼图 -->
-                        <div class="col-lg-5">
-                            <div class="viz-modal-card h-100">
-                                <div class="viz-modal-card__header">
-                                    <span><i class="bi bi-pie-chart me-2 text-primary"></i>年度二级分类占比</span>
-                                    <span class="badge bg-primary-subtle text-primary" id="vizYear2"></span>
-                                </div>
-                                <div class="viz-modal-card__body d-flex align-items-center justify-content-center flex-fill">
-                                    <canvas id="vizCategoryChart"></canvas>
-                                </div>
-                            </div>
+                        <div class="viz-modal-card__body d-flex align-items-center justify-content-center flex-fill">
+                            <canvas id="vizCategoryChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -214,58 +184,11 @@
 {% block extra_js %}
 <script>
 // ─── 数据 ─────────────────────────────────────────────
-const monthlyTrendData = {{ monthly_trend_data|safe }};
 const PALETTE = [
     '#4f81ff','#f6753a','#22c55e','#a855f7','#eab308',
     '#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1'
 ];
 
-// ─── 月度趋势图 ────────────────────────────────────
-const ctx = document.getElementById('monthlyTrendChart');
-if (ctx) {
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
-            datasets: [{
-                label: '月支出(元)',
-                data: monthlyTrendData,
-                borderColor: '#4f81ff',
-                backgroundColor: 'rgba(79, 129, 255, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#4f81ff',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ¥${ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#f1f5f9' },
-                    ticks: {
-                        callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v)
-                    }
-                },
-                x: { grid: { display: false } }
-            }
-        }
-    });
-}
 
 // ─── 分类占比饼图（报表页）────────────────────────────
 const pieCategories = {{ pie_categories|safe }};
@@ -382,51 +305,9 @@ function loadVizData(year) {
 
 function renderVizCharts(data) {
     const year = data.year;
-    const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    const monthValues = Array.from({length:12}, (_,i) => data.monthly_data[i+1] || 0);
 
     // 年份标签
-    document.getElementById('vizYear1').textContent = year;
     document.getElementById('vizYear2').textContent = year;
-
-    // 月度柱状图
-    const maxVal = Math.max(...monthValues);
-    const barChart = new Chart(document.getElementById('vizMonthlyChart'), {
-        type: 'bar',
-        data: {
-            labels: monthLabels,
-            datasets: [{
-                label: '月支出(元)',
-                data: monthValues,
-                backgroundColor: monthValues.map(v => v === maxVal ? '#4f81ff' : '#4f81ff66'),
-                borderColor: '#4f81ff',
-                borderWidth: 1.5,
-                borderRadius: 8,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ¥${ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits:2})}`
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#f1f5f9' },
-                    ticks: { callback: v => '¥' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v), font: { size: 11 } }
-                },
-                x: { grid: { display: false }, ticks: { font: { size: 11 } } }
-            }
-        }
-    });
-    vizModalCharts.push(barChart);
 
     // 分类饼图
     const cats = data.categories;

@@ -416,14 +416,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
             <div class="modal-body viz-modal-body">
-                <!-- 月度支出趋势柱状图 -->
+                <!-- 月度支出趋势折线图 -->
                 <div class="viz-modal-card mb-4">
                     <div class="viz-modal-card__header">
-                        <span><i class="bi bi-bar-chart me-2 text-primary"></i>月度支出趋势</span>
+                        <span><i class="bi bi-activity me-2 text-primary"></i>月度支出趋势</span>
                         <span class="badge bg-primary-subtle text-primary" id="monthlyTrendYear"></span>
                     </div>
                     <div class="viz-modal-card__body">
-                        <canvas id="monthlyTrendBarChart" style="max-height: 260px;"></canvas>
+                        <canvas id="monthlyTrendBarChart" style="max-height: 280px;"></canvas>
                     </div>
                 </div>
 
@@ -1135,8 +1135,8 @@ function fetchMonthlyTrendData(year) {
 }
 
 function renderMonthlyTrendBar(monthlyData, year) {
-    const ctx = document.getElementById('monthlyTrendBarChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('monthlyTrendBarChart');
+    if (!canvas) return;
 
     if (monthlyTrendBarChartInstance) {
         monthlyTrendBarChartInstance.destroy();
@@ -1146,30 +1146,88 @@ function renderMonthlyTrendBar(monthlyData, year) {
     const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
     const monthValues = Array.from({length: 12}, (_, i) => monthlyData[i + 1] || 0);
     const maxVal = Math.max(...monthValues);
+    const maxIdx = monthValues.indexOf(maxVal);
+    const total = monthValues.reduce((a, b) => a + b, 0);
+    const avg = total / 12;
 
-    monthlyTrendBarChartInstance = new Chart(ctx, {
-        type: 'bar',
+    // 渐变填充
+    const chartCtx = canvas.getContext('2d');
+    const gradient = chartCtx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 260);
+    gradient.addColorStop(0, 'rgba(79, 129, 255, 0.35)');
+    gradient.addColorStop(0.5, 'rgba(79, 129, 255, 0.12)');
+    gradient.addColorStop(1, 'rgba(79, 129, 255, 0.01)');
+
+    // 峰值点高亮颜色
+    const PEAK_COLOR = '#f6753a';
+    const MAIN_COLOR = '#4f81ff';
+
+    monthlyTrendBarChartInstance = new Chart(canvas, {
+        type: 'line',
         data: {
             labels: monthLabels,
             datasets: [{
                 label: '月支出(元)',
                 data: monthValues,
-                backgroundColor: monthValues.map(v => v === maxVal && maxVal > 0 ? '#4f81ff' : '#4f81ff66'),
-                borderColor: '#4f81ff',
+                borderColor: MAIN_COLOR,
+                backgroundColor: gradient,
                 borderWidth: 1.5,
-                borderRadius: 6,
-                borderSkipped: false
+                pointBackgroundColor: monthValues.map((v, i) => i === maxIdx && maxVal > 0 ? PEAK_COLOR : '#ffffff'),
+                pointBorderColor: monthValues.map((v, i) => i === maxIdx && maxVal > 0 ? PEAK_COLOR : MAIN_COLOR),
+                pointBorderWidth: 2,
+                pointRadius: monthValues.map((v, i) => i === maxIdx && maxVal > 0 ? 4 : 3),
+                pointHoverRadius: 5,
+                pointHoverBorderWidth: 2,
+                pointHoverBackgroundColor: '#ffffff',
+                pointHoverBorderColor: MAIN_COLOR,
+                fill: true,
+                tension: 0.35,
+                segment: {
+                    borderColor: function(ctx) {
+                        return MAIN_COLOR;
+                    }
+                }
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            animation: {
+                duration: 800,
+                easing: 'easeInOutQuart'
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#cbd5e1',
+                    borderColor: 'rgba(79, 129, 255, 0.3)',
+                    borderWidth: 1,
+                    padding: 12,
+                    cornerRadius: 10,
+                    displayColors: false,
+                    titleFont: { size: 13, weight: '600' },
+                    bodyFont: { size: 12 },
+                    titleMarginBottom: 6,
                     callbacks: {
+                        title: function(items) {
+                            return items[0].label + ' · ' + year + '年';
+                        },
                         label: function(ctx) {
-                            return ' ¥' + ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits: 2});
+                            const val = ctx.raw;
+                            const diff = val - avg;
+                            const diffStr = diff >= 0
+                                ? '+¥' + diff.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                                : '-¥' + Math.abs(diff).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            const diffColor = diff >= 0 ? '#fb7185' : '#34d399';
+                            return [
+                                '支出 ¥' + val.toLocaleString('zh-CN', {minimumFractionDigits: 2}),
+                                '较月均 ' + diffStr
+                            ];
                         }
                     }
                 }
@@ -1177,10 +1235,17 @@ function renderMonthlyTrendBar(monthlyData, year) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: '#f1f5f9' },
+                    suggestedMax: maxVal > 0 ? maxVal * 1.15 : 100,
+                    grid: {
+                        color: '#f1f5f9',
+                        drawBorder: false,
+                        borderDash: [4, 4]
+                    },
+                    border: { display: false },
                     ticks: {
                         font: { size: 11 },
                         color: '#94a3b8',
+                        padding: 8,
                         callback: function(v) {
                             return '¥' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v);
                         }
@@ -1188,7 +1253,12 @@ function renderMonthlyTrendBar(monthlyData, year) {
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { font: { size: 11 }, color: '#64748b' }
+                    border: { color: '#e2e8f0' },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#64748b',
+                        padding: 6
+                    }
                 }
             }
         }

@@ -416,6 +416,17 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
             <div class="modal-body viz-modal-body">
+                <!-- 月度支出趋势柱状图 -->
+                <div class="viz-modal-card mb-4">
+                    <div class="viz-modal-card__header">
+                        <span><i class="bi bi-bar-chart me-2 text-primary"></i>月度支出趋势</span>
+                        <span class="badge bg-primary-subtle text-primary" id="monthlyTrendYear"></span>
+                    </div>
+                    <div class="viz-modal-card__body">
+                        <canvas id="monthlyTrendBarChart" style="max-height: 260px;"></canvas>
+                    </div>
+                </div>
+
                 <!-- 图表卡片 -->
                 <div class="viz-modal-card">
                     <div class="viz-modal-card__header">
@@ -850,6 +861,7 @@ const PALETTE = [
 ];
 
 let monthlyAnalysisChartInstance = null;
+let monthlyTrendBarChartInstance = null;
 let currentChartType = 'bar';
 let currentCategoryLevel = 1;  // 1=一级分类，2=二级分类
 let currentAnalysisData = null;
@@ -884,6 +896,9 @@ if (monthlyAnalysisModal) {
             periodEl.textContent = `${currentYear}年${currentMonth}月`;
         }
 
+        // 加载月度支出趋势柱状图
+        fetchMonthlyTrendData(currentYear);
+
         // 加载图表数据
         fetchAnalysisData();
 
@@ -895,6 +910,10 @@ if (monthlyAnalysisModal) {
         if (monthlyAnalysisChartInstance) {
             monthlyAnalysisChartInstance.destroy();
             monthlyAnalysisChartInstance = null;
+        }
+        if (monthlyTrendBarChartInstance) {
+            monthlyTrendBarChartInstance.destroy();
+            monthlyTrendBarChartInstance = null;
         }
         // 清理饼图尺寸类
         const cardBody = document.querySelector('#monthlyAnalysisModal .viz-modal-card__body');
@@ -1095,6 +1114,84 @@ function fetchAndShowCategoryDetail(category) {
     })
     .finally(() => {
         isFetchingDetail = false;
+    });
+}
+
+// ─── 月度支出趋势柱状图 ───────────────────────────────────
+function fetchMonthlyTrendData(year) {
+    const yearLabel = document.getElementById('monthlyTrendYear');
+    if (yearLabel) yearLabel.textContent = year + ' 年';
+
+    fetch('{% url "expenses:api_visualizations" %}?year=' + year, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+        renderMonthlyTrendBar(data.monthly_data, year);
+    })
+    .catch(() => {
+        // 静默失败
+    });
+}
+
+function renderMonthlyTrendBar(monthlyData, year) {
+    const ctx = document.getElementById('monthlyTrendBarChart');
+    if (!ctx) return;
+
+    if (monthlyTrendBarChartInstance) {
+        monthlyTrendBarChartInstance.destroy();
+        monthlyTrendBarChartInstance = null;
+    }
+
+    const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    const monthValues = Array.from({length: 12}, (_, i) => monthlyData[i + 1] || 0);
+    const maxVal = Math.max(...monthValues);
+
+    monthlyTrendBarChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: '月支出(元)',
+                data: monthValues,
+                backgroundColor: monthValues.map(v => v === maxVal && maxVal > 0 ? '#4f81ff' : '#4f81ff66'),
+                borderColor: '#4f81ff',
+                borderWidth: 1.5,
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ' ¥' + ctx.raw.toLocaleString('zh-CN', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#94a3b8',
+                        callback: function(v) {
+                            return '¥' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v);
+                        }
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 }, color: '#64748b' }
+                }
+            }
+        }
     });
 }
 

@@ -203,16 +203,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- 支出排行 -->
-                    <div class="viz-modal-card mt-4">
-                        <div class="viz-modal-card__header">
-                            <span><i class="bi bi-trophy me-2" style="color:#eab308"></i>年度支出排行</span>
-                            <span class="text-muted small" id="vizRankingYear"></span>
-                        </div>
-                        <div class="viz-modal-card__body">
-                            <div id="vizRankingList"></div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -398,7 +388,6 @@ function renderVizCharts(data) {
     // 年份标签
     document.getElementById('vizYear1').textContent = year;
     document.getElementById('vizYear2').textContent = year;
-    document.getElementById('vizRankingYear').textContent = year + ' 年 · 二级分类';
 
     // 月度柱状图
     const maxVal = Math.max(...monthValues);
@@ -481,33 +470,6 @@ function renderVizCharts(data) {
     } else {
         pieCanvas.parentElement.innerHTML =
             '<p class="text-muted text-center py-5"><i class="bi bi-pie-chart fs-1 d-block mb-2 opacity-25"></i>暂无分类数据</p>';
-    }
-
-    // 支出排行
-    const rankingEl = document.getElementById('vizRankingList');
-    if (rankingEl && cats.length > 0) {
-        const totalAmt = amts.reduce((a,b) => a+b, 0);
-        const sorted = cats.map((c,i) => ({ name: c, val: amts[i] })).sort((a,b) => b.val - a.val);
-        rankingEl.innerHTML = sorted.map((item, i) => {
-            const pct = totalAmt > 0 ? (item.val / totalAmt * 100).toFixed(1) : 0;
-            const color = PALETTE[i % PALETTE.length];
-            return `
-            <div class="ranking-item-new mb-3">
-                <div class="ranking-item-new__header">
-                    <div class="ranking-item-new__left">
-                        <span class="ranking-badge-new" style="background:${color}">${i+1}</span>
-                        <span class="ranking-item-new__name">${item.name}</span>
-                    </div>
-                    <div class="ranking-item-new__right">
-                        <span class="ranking-item-new__amount" style="color:${color}">¥${item.val.toLocaleString('zh-CN',{minimumFractionDigits:2})}</span>
-                        <span class="ranking-item-new__percent">${pct}%</span>
-                    </div>
-                </div>
-                <div class="ranking-item-new__progress">
-                    <div class="ranking-item-new__progress-bar" style="width:${pct}%;background:${color}"></div>
-                </div>
-            </div>`;
-        }).join('');
     }
 }
 </script>

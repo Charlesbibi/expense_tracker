@@ -28,39 +28,43 @@
 <!-- 核心指标卡片 -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-        <div class="report-card report-card--blue">
-            <div class="report-card__icon"><i class="bi bi-currency-yen"></i></div>
-            <div class="report-card__content">
-                <div class="report-card__value">¥{{ yearly_total|floatformat:2 }}</div>
-                <div class="report-card__label">年度总支出</div>
+        <div class="report-card report-card--kpi report-card--blue">
+            <div class="report-card__kpi-top">
+                <span class="report-card__kpi-label">年度总支出</span>
+                <span class="report-card__kpi-icon"><i class="bi bi-currency-yen"></i></span>
             </div>
+            <div class="report-card__kpi-value">¥{{ yearly_total|floatformat:2 }}</div>
+            <div class="report-card__kpi-sub">全年累计消费</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
-        <div class="report-card report-card--purple">
-            <div class="report-card__icon"><i class="bi bi-calendar4-week"></i></div>
-            <div class="report-card__content">
-                <div class="report-card__value">{{ yearly_count }}</div>
-                <div class="report-card__label">总笔数</div>
+        <div class="report-card report-card--kpi report-card--purple">
+            <div class="report-card__kpi-top">
+                <span class="report-card__kpi-label">总笔数</span>
+                <span class="report-card__kpi-icon"><i class="bi bi-receipt"></i></span>
             </div>
+            <div class="report-card__kpi-value">{{ yearly_count }}</div>
+            <div class="report-card__kpi-sub">全年记账条数</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
-        <div class="report-card report-card--green">
-            <div class="report-card__icon"><i class="bi bi-bar-chart-line"></i></div>
-            <div class="report-card__content">
-                <div class="report-card__value">¥{{ daily_avg|floatformat:2 }}</div>
-                <div class="report-card__label">日均消费</div>
+        <div class="report-card report-card--kpi report-card--green">
+            <div class="report-card__kpi-top">
+                <span class="report-card__kpi-label">月均消费</span>
+                <span class="report-card__kpi-icon"><i class="bi bi-calendar4-week"></i></span>
             </div>
+            <div class="report-card__kpi-value">¥{{ monthly_avg|floatformat:2 }}</div>
+            <div class="report-card__kpi-sub">按已有记录月份计算</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
-        <div class="report-card report-card--orange">
-            <div class="report-card__icon"><i class="bi bi-calendar-check"></i></div>
-            <div class="report-card__content">
-                <div class="report-card__value">¥{{ weekly_avg|floatformat:2 }}</div>
-                <div class="report-card__label">周均消费</div>
+        <div class="report-card report-card--kpi report-card--orange">
+            <div class="report-card__kpi-top">
+                <span class="report-card__kpi-label">周均消费</span>
+                <span class="report-card__kpi-icon"><i class="bi bi-calendar-check"></i></span>
             </div>
+            <div class="report-card__kpi-value">¥{{ weekly_avg|floatformat:2 }}</div>
+            <div class="report-card__kpi-sub">按当年周数折算</div>
         </div>
     </div>
 </div>
@@ -104,6 +108,53 @@
 
 
 
+
+<!-- 年度必要大额开销统计 -->
+<div class="report-card report-card--big-expense mb-4">
+    <div class="report-card__header">
+        <h3 class="report-card__title">
+            <i class="bi bi-fire me-2"></i>年度必要大额开销
+        </h3>
+        <span class="text-muted small">占年度总支出比例 · 全部年份</span>
+    </div>
+    <div class="report-card__body">
+        {% if big_rows %}
+        <div class="be-grid">
+            {% for row in big_rows %}
+            <div class="be-card {% if row.pct >= 60 %}be--danger{% elif row.pct >= 40 %}be--warn{% elif row.pct >= 25 %}be--mid{% elif row.pct >= 10 %}be--ok{% else %}be--good{% endif %}" style="--pct: {{ row.pct|floatformat:1 }};">
+                <div class="be-card__top">
+                    <div class="be-ring" title="占年度总支出 {{ row.pct|floatformat:1 }}% · 年度总支出 ¥{{ row.year_total|floatformat:0 }} · {{ row.big_count }} 笔">
+                        <div class="be-ring__center">
+                            <b>{{ row.pct|floatformat:1 }}<i>%</i></b>
+                        </div>
+                    </div>
+                    <div class="be-card__info">
+                        <div class="be-card__head">
+                            <span class="be-card__dot"></span>
+                            <span class="be-card__year">{{ row.year }}<em>年</em></span>
+                        </div>
+                        <div class="be-card__amount">¥{{ row.big_total|floatformat:2 }}</div>
+                    </div>
+                </div>
+                <div class="be-card__comp">
+                    <div class="be-segments">
+                        {% for cat_name, cat_amount in row.cat_detail %}
+                        {% cycle '#4f81ff' '#f6753a' '#22c55e' '#a855f7' '#eab308' as seg_color silent %}
+                        <span class="be-seg" title="{{ cat_name }} ¥{{ cat_amount|floatformat:0 }} · 占必要大额 {% widthratio cat_amount row.big_total 100 %}%" style="width: {% widthratio cat_amount row.big_total 100 %}%; background: {{ seg_color }};"></span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+            暂无标记为「年度必要大额开销」的记录
+        </div>
+        {% endif %}
+    </div>
+</div>
 
 <!-- 分类占比饼图 + 支出排行 -->
 <div class="row g-4 mb-4">
@@ -181,6 +232,150 @@
 
 {% endblock %}
 
+{% block extra_css %}
+<style>
+/* ── 年度必要大额开销：年度卡片 + 占比环 + 分类堆叠条 ─────── */
+.be-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 14px;
+}
+.be-card {
+    position: relative;
+    padding: 18px 20px 16px;
+    border-radius: 16px;
+    background: linear-gradient(165deg, var(--be-soft) 0%, #ffffff 46%);
+    border: 1px solid #eef2f9;
+    overflow: hidden;
+    transition: border-color .2s, box-shadow .2s, transform .2s;
+    animation: card-in .45s var(--ease-out-soft) both;
+}
+.be-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--be-color);
+    opacity: .9;
+}
+.be-card:hover {
+    transform: translateY(-2px);
+    border-color: #dbe6fb;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .07);
+}
+/* 占比等级配色 */
+.be--danger { --be-color: #dc2626; --be-soft: #fef2f2; }
+.be--warn   { --be-color: #f97316; --be-soft: #fff7ed; }
+.be--mid    { --be-color: #ca8a04; --be-soft: #fefce8; }
+.be--ok     { --be-color: #65a30d; --be-soft: #f7fee7; }
+.be--good   { --be-color: #16a34a; --be-soft: #f0fdf4; }
+
+/* 上半部：环形图 + 概要 */
+.be-card__top { display: flex; align-items: center; gap: 18px; }
+.be-ring {
+    position: relative;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    background: conic-gradient(var(--be-color) calc(var(--pct) * 1%), #e8edf6 0);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--be-color) 14%, transparent);
+}
+.be-ring::before {
+    content: '';
+    position: absolute;
+    inset: 9px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, .04);
+}
+.be-ring__center { position: relative; text-align: center; line-height: 1; }
+.be-ring__center b {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--be-color);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+}
+.be-ring__center b i {
+    font-style: normal;
+    font-size: .62em;
+    font-weight: 600;
+    margin-left: 1px;
+    opacity: .8;
+}
+
+.be-card__info { flex: 1; min-width: 0; }
+.be-card__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.be-card__year {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+}
+.be-card__year em {
+    font-style: normal;
+    font-size: .78em;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-left: 1px;
+}
+/* 强度等级标识：年份前的色点（等级色，随占比变化） */
+.be-card__dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    background: var(--be-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--be-color) 15%, transparent);
+    flex-shrink: 0;
+}
+.be-card__amount {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    margin: 5px 0 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 下半部：一级分类堆叠条（悬停显示明细） */
+.be-card__comp {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed #e2e8f4;
+}
+.be-segments {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    border-radius: 6px;
+    background: #eef2f9;
+    overflow: hidden;
+}
+.be-seg {
+    border-radius: 3px;
+    min-width: 4px;
+    transition: width .6s ease, filter .15s;
+    cursor: default;
+}
+.be-seg:hover { filter: brightness(1.12); }
+.be-seg:last-child { flex: 1; }
+
+@media (max-width: 420px) {
+    .be-ring { width: 78px; height: 78px; }
+    .be-ring::before { inset: 8px; }
+    .be-ring__center b { font-size: 1.15rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .be-card { animation: none; transition: none; }
+    .be-seg { transition: none; }
+}
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 // ─── 数据 ─────────────────────────────────────────────
@@ -189,10 +384,37 @@ const PALETTE = [
     '#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1'
 ];
 
+// ─── 环形图中心文字插件（总额 + 标签）─────────────────────
+const doughnutCenterText = {
+    id: 'doughnutCenterText',
+    afterDraw(chart, args, opts) {
+        if (!opts || !opts.display || !chart.chartArea) return;
+        const { ctx, chartArea } = chart;
+        const x = (chartArea.left + chartArea.right) / 2;
+        const y = (chartArea.top + chartArea.bottom) / 2;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#0f172a';
+        ctx.font = "700 19px Inter, 'PingFang SC', sans-serif";
+        ctx.fillText(opts.valueText, x, y - 8);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = "500 11px Inter, 'PingFang SC', sans-serif";
+        ctx.fillText(opts.labelText, x, y + 13);
+        ctx.restore();
+    }
+};
+Chart.register(doughnutCenterText);
+
+function fmtCNY(v) {
+    return '¥' + v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 
 // ─── 分类占比饼图（报表页）────────────────────────────
 const pieCategories = {{ pie_categories|safe }};
 const pieAmounts    = {{ pie_amounts|safe }};
+const pieTotal      = pieAmounts.reduce((a, b) => a + b, 0);
 
 const pieCtx = document.getElementById('reportCategoryChart');
 if (pieCtx) {
@@ -206,13 +428,20 @@ if (pieCtx) {
                     backgroundColor: PALETTE.slice(0, pieCategories.length),
                     borderColor: '#ffffff',
                     borderWidth: 3,
-                    hoverOffset: 12
+                    hoverOffset: 10
                 }]
             },
             options: {
                 responsive: true,
-                cutout: '62%',
+                cutout: '66%',
                 plugins: {
+                    doughnutCenterText: {
+                        display: true,
+                        valueText: pieTotal >= 10000
+                            ? '¥' + (pieTotal / 10000).toFixed(2) + '万'
+                            : fmtCNY(pieTotal),
+                        labelText: '年度总额'
+                    },
                     legend: {
                         position: 'bottom',
                         labels: { padding: 14, boxWidth: 12, font: { size: 12 } }
@@ -222,7 +451,7 @@ if (pieCtx) {
                             label: function(ctx) {
                                 const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
                                 const pct = ((ctx.raw / total) * 100).toFixed(1);
-                                return ` ¥${ctx.raw.toLocaleString('zh-CN',{minimumFractionDigits:2})} (${pct}%)`;
+                                return ` ${fmtCNY(ctx.raw)} (${pct}%)`;
                             }
                         }
                     }
@@ -235,7 +464,7 @@ if (pieCtx) {
     }
 }
 
-// ─── 支出排行（报表页）───────────────────────────────
+// ─── 支出排行（报表页，降序排列）───────────────────────
 const reportRankingEl = document.getElementById('reportRankingList');
 if (reportRankingEl && pieCategories.length > 0) {
     const totalAmt = pieAmounts.reduce((a,b) => a+b, 0);
@@ -252,7 +481,7 @@ if (reportRankingEl && pieCategories.length > 0) {
                     <span class="ranking-item-new__name">${item.name}</span>
                 </div>
                 <div class="ranking-item-new__right">
-                    <span class="ranking-item-new__amount" style="color:${color}">¥${item.val.toLocaleString('zh-CN',{minimumFractionDigits:2})}</span>
+                    <span class="ranking-item-new__amount" style="color:${color}">${fmtCNY(item.val)}</span>
                     <span class="ranking-item-new__percent">${pct}%</span>
                 </div>
             </div>
@@ -312,6 +541,7 @@ function renderVizCharts(data) {
     // 分类饼图
     const cats = data.categories;
     const amts = data.amounts;
+    const vizTotal = amts.reduce((a, b) => a + b, 0);
     const pieCanvas = document.getElementById('vizCategoryChart');
     if (cats.length > 0) {
         const pieChart = new Chart(pieCanvas, {
@@ -323,14 +553,21 @@ function renderVizCharts(data) {
                     backgroundColor: PALETTE.slice(0, cats.length),
                     borderColor: '#ffffff',
                     borderWidth: 3,
-                    hoverOffset: 12
+                    hoverOffset: 10
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '58%',
+                cutout: '62%',
                 plugins: {
+                    doughnutCenterText: {
+                        display: true,
+                        valueText: vizTotal >= 10000
+                            ? '¥' + (vizTotal / 10000).toFixed(2) + '万'
+                            : fmtCNY(vizTotal),
+                        labelText: '年度总额'
+                    },
                     legend: {
                         position: 'bottom',
                         labels: { padding: 8, boxWidth: 10, font: { size: 11 } }
@@ -340,7 +577,7 @@ function renderVizCharts(data) {
                             label: function(ctx) {
                                 const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
                                 const pct = ((ctx.raw / total) * 100).toFixed(1);
-                                return ` ¥${ctx.raw.toLocaleString('zh-CN',{minimumFractionDigits:2})} (${pct}%)`;
+                                return ` ${fmtCNY(ctx.raw)} (${pct}%)`;
                             }
                         }
                     }

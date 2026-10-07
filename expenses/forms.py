@@ -11,11 +11,14 @@ class ExpenseForm(forms.ModelForm):
 
     class Meta:
         model = Expense
-        fields = ['date', 'category', 'description', 'amount']
+        fields = ['date', 'category', 'description', 'amount', 'is_big_expense']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.TextInput(attrs={'placeholder': '请输入开支描述（可选）...'}),
             'amount': forms.NumberInput(attrs={'placeholder': '0.00', 'step': '0.01'}),
+        }
+        labels = {
+            'is_big_expense': '年度必要大额开销',
         }
 
     def clean_amount(self):
@@ -38,6 +41,8 @@ class ExpenseForm(forms.ModelForm):
         self.fields['category'].label_from_instance = lambda obj: obj.get_full_path()
         # 描述字段为可选
         self.fields['description'].required = False
+        # 年度必要大额开销为可选（复选框，不勾选即 False）
+        self.fields['is_big_expense'].required = False
 
 
 class CategoryForm(forms.ModelForm):

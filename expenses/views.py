@@ -10,8 +10,9 @@ from .forms import ExpenseForm, CategoryForm
 
 
 def get_categories_api(request):
-    """API：获取叶子类别列表（用于 AJAX 加载）
-    只返回没有子分类的类别：有二级的不显示一级，仅一级的显示自身
+    """API：获取类别树（用于表单弹窗树形下拉）
+    返回 tree：一级类别列表，含 children（二级）；无子类的一级自身即叶子，可选
+    同时保留 categories（叶子平铺列表，兼容旧用法）
     """
     parent_ids = ExpenseCategory.objects.exclude(
         parent__isnull=True
@@ -27,8 +28,22 @@ def get_categories_api(request):
         }
         for cat in categories
     ]
-    print(f"[DEBUG] 返回叶子类别数据: {len(data)} 个类别")
-    return JsonResponse({'success': True, 'categories': data})
+
+    # 构建树形结构
+    tree = []
+    for top in ExpenseCategory.objects.filter(parent=None).order_by('id'):
+        children = [
+            {'id': child.id, 'name': child.name}
+            for child in top.expensecategory_set.order_by('id')
+        ]
+        tree.append({
+            'id': top.id,
+            'name': top.name,
+            'has_children': bool(children),
+            'children': children,
+        })
+
+    return JsonResponse({'success': True, 'categories': data, 'tree': tree})
 
 
 def monthly_analysis_api(request):
@@ -288,6 +303,23 @@ def expense_list(request):
     if month:
         expenses_qs = expenses_qs.filter(date__month=month)
 
+    # 按描述模糊搜索
+    description = request.GET.get('description', '').strip()
+    if description:
+        expenses_qs = expenses_qs.filter(description__icontains=description)
+
+    # 按类别筛选（支持多选；勾选一级类别时自动包含其子类别）
+    selected_category_ids = [
+        int(cid) for cid in request.GET.getlist('category') if str(cid).isdigit()
+    ]
+    if selected_category_ids:
+        filter_ids = set(selected_category_ids)
+        child_ids = ExpenseCategory.objects.filter(
+            parent_id__in=selected_category_ids
+        ).values_list('id', flat=True)
+        filter_ids.update(child_ids)
+        expenses_qs = expenses_qs.filter(category_id__in=filter_ids)
+
     # 当前筛选范围内的总金额 & 总笔数（用于统计卡片，不受分页影响）
     total_expense = expenses_qs.aggregate(Sum('amount'))['amount__sum'] or 0
     total_count   = expenses_qs.count()
@@ -353,6 +385,14 @@ def expense_list(request):
         top_name = exp.category.parent.name if exp.category.parent else exp.category.name
         exp.cat_color_class = cat_color_map.get(top_name, 'cat-color-0')
 
+    # 类别筛选下拉框数据：全部一级 + 二级类别，按层级排列
+    filter_categories = []
+    top_cats = ExpenseCategory.objects.filter(parent=None).order_by('id')
+    for top in top_cats:
+        filter_categories.append({'id': top.id, 'label': top.name, 'is_parent': True})
+        for child in top.expensecategory_set.order_by('id'):
+            filter_categories.append({'id': child.id, 'label': '　└ ' + child.name, 'is_parent': False})
+
     context = {
         'page_obj':            page_obj,
         'expenses':            expenses_list,
@@ -361,6 +401,9 @@ def expense_list(request):
         'latest_date':         latest_date,
         'current_year':        int(year) if year else None,
         'current_month':       int(month) if month else None,
+        'current_description': description,
+        'filter_categories':   filter_categories,
+        'selected_category_ids': selected_category_ids,
         'all_years':           all_years,
         'filter_query_string': filter_query_string,
         'form':                form,
@@ -606,13 +649,13 @@ def reports(request):
     yearly_total = yearly_expenses.aggregate(Sum('amount'))['amount__sum'] or 0
     yearly_count = yearly_expenses.count()
 
-    # 日均、周均
-    days_in_year = 366 if year % 4 == 0 else 365
-    if yearly_total > 0:
-        daily_avg = yearly_total / days_in_year
+    # 月均（按当年有收支记录的月份数作为分母）、周均
+    months_with_records = yearly_expenses.dates('date', 'month').count()
+    if yearly_total > 0 and months_with_records > 0:
+        monthly_avg = yearly_total / months_with_records
         weekly_avg = yearly_total / 52
     else:
-        daily_avg = 0
+        monthly_avg = 0
         weekly_avg = 0
 
     # 同比分析（与去年对比）
@@ -647,18 +690,57 @@ def reports(request):
 
     import json as _json
 
+    # ── 年度必要大额开销统计（跨所有年份，逐年年表）────────────
+    big_rows = []
+    big_qs = expenses_qs.filter(is_big_expense=True)
+    # 各年总额（分母）
+    year_totals = dict(
+        expenses_qs.values('date__year').annotate(t=Sum('amount')).values_list('date__year', 't')
+    )
+    # 各年必要大额总额与笔数（分子）
+    big_yearly = big_qs.values('date__year').annotate(
+        t=Sum('amount'), c=Count('id')
+    ).order_by('date__year')
+    # 各年必要大额的一级分类构成（用于明细条）
+    big_by_year_cat = {}
+    for item in big_qs.values('date__year', 'category__parent__name', 'category__name').annotate(
+        t=Sum('amount')
+    ).order_by('date__year', '-t'):
+        yr = item['date__year']
+        name = item['category__parent__name'] or item['category__name']
+        big_by_year_cat.setdefault(yr, {})
+        big_by_year_cat[yr][name] = big_by_year_cat[yr].get(name, 0) + item['t']
+
+    for item in big_yearly:
+        yr = item['date__year']
+        big_total = item['t']
+        year_total = year_totals.get(yr) or 0
+        pct = (big_total / year_total * 100) if year_total else 0
+        # 明细条：该年必要大额按一级分类的金额构成
+        cat_detail = sorted(big_by_year_cat.get(yr, {}).items(), key=lambda x: -x[1])
+        big_rows.append({
+            'year': yr,
+            'big_total': big_total,
+            'big_count': item['c'],
+            'year_total': year_total,
+            'pct': pct,
+            'cat_detail': cat_detail,
+        })
+
     context = {
         'year': year,
         'viz_type': viz_type,
         'all_years': all_years,
         'yearly_total': yearly_total,
         'yearly_count': yearly_count,
-        'daily_avg': daily_avg,
+        'monthly_avg': monthly_avg,
+        'months_with_records': months_with_records,
         'weekly_avg': weekly_avg,
         'last_year_total': last_year_total,
         'yoy_growth': yoy_growth,
         'monthly_trend_data': monthly_trend_data,
         'pie_categories': _json.dumps(pie_categories, ensure_ascii=False),
         'pie_amounts': _json.dumps(pie_amounts),
+        'big_rows': big_rows,
     }
     return render(request, 'expenses/reports.html', context)

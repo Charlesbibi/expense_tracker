@@ -83,6 +83,8 @@
             <i class="bi bi-funnel me-1"></i>筛选
         </div>
         <form method="get" class="filter-form d-flex flex-wrap gap-2 align-items-center">
+            <input type="text" name="description" id="descriptionSearch" class="form-control form-control-sm filter-input"
+                   placeholder="搜索描述…" value="{{ current_description }}" autocomplete="off">
             <select name="year" id="yearSelect" class="form-select form-select-sm filter-select">
                 <option value="">全部年份</option>
                 {% for year_obj in all_years %}
@@ -107,6 +109,26 @@
                 <option value="11" {% if current_month == 11 %}selected{% endif %}>11 月</option>
                 <option value="12" {% if current_month == 12 %}selected{% endif %}>12 月</option>
             </select>
+            <!-- 类别多选筛选 -->
+            <div class="dropdown filter-dropdown-categories">
+                <button type="button" id="categoryFilterBtn" class="form-select form-select-sm filter-select filter-select--categories" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                    类别筛选
+                </button>
+                <div class="dropdown-menu category-dropdown-menu shadow-sm">
+                    <div class="category-dropdown-actions">
+                        <button type="button" id="categorySelectAll" class="btn btn-sm btn-link text-decoration-none p-0">全选</button>
+                        <button type="button" id="categoryClearAll" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">清空</button>
+                    </div>
+                    {% for cat in filter_categories %}
+                        <div class="form-check category-check-item{% if cat.is_parent %} category-check-item--parent{% endif %}">
+                            <input class="form-check-input category-filter-check" type="checkbox" name="category"
+                                   value="{{ cat.id }}" id="cat-filter-{{ cat.id }}"
+                                   {% if cat.id in selected_category_ids %}checked{% endif %}>
+                            <label class="form-check-label" for="cat-filter-{{ cat.id }}">{{ cat.label }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
             <div class="filter-actions">
                 <button type="submit" class="btn-filter">
                     <i class="bi bi-funnel-fill"></i>
@@ -138,7 +160,7 @@
             </thead>
             <tbody>
                 {% for expense in expenses %}
-                <tr class="expense-row{% if expense.is_high_amount %} expense-row--high-amount{% endif %}" style="animation-delay: {{ forloop.counter0 }}00ms">
+                <tr class="expense-row{% if expense.is_high_amount %} expense-row--high-amount{% endif %}" style="animation-delay: {{ forloop.counter0 }}00ms" data-is-big="{% if expense.is_big_expense %}1{% else %}0{% endif %}">
                     <td class="text-center">
                         <span class="date-badge">{{ expense.date|date:"Y/m/d" }}</span>
                     </td>
@@ -263,13 +285,15 @@
     <div class="modal-dialog modal-dialog-centered modal-add-expense">
         <div class="modal-content">
             <div class="modal-header-add">
+                <div class="modal-banner" aria-hidden="true"></div>
+                <button type="button" class="btn-close-add" data-bs-dismiss="modal" aria-label="关闭">
+                    <i class="bi bi-x-lg"></i>
+                </button>
                 <div class="modal-icon-header">
                     <i class="bi bi-plus-lg"></i>
                 </div>
                 <h5 class="modal-title-add" id="addExpenseModalLabel">新增开支</h5>
-                <button type="button" class="btn-close-add" data-bs-dismiss="modal" aria-label="关闭">
-                    <i class="bi bi-x-lg"></i>
-                </button>
+                <p class="modal-subtitle-add">记录一笔新的家庭支出，保存后实时同步统计</p>
             </div>
             <div class="modal-body-add">
                 <form id="addExpenseForm" novalidate>
@@ -291,10 +315,14 @@
                         <label for="id_category" class="form-label-add">
                             <i class="bi bi-tag"></i>类别
                         </label>
-                        <select class="form-input-add form-select-add" id="id_category" name="category" required>
-                            <option value="">请选择类别</option>
-                            <!-- 类别选项将通过 AJAX 动态加载 -->
-                        </select>
+                        <div class="cat-tree" id="catTreeAdd">
+                            <input type="hidden" id="id_category" name="category" value="">
+                            <div class="cat-tree__trigger" tabindex="0" role="combobox" aria-expanded="false">
+                                <span class="cat-tree__value cat-tree__value--placeholder">请选择类别</span>
+                                <i class="bi bi-chevron-down cat-tree__arrow"></i>
+                            </div>
+                            <div class="cat-tree__panel"></div>
+                        </div>
                         <div id="categoryLoading" class="form-loading d-none">
                             <i class="bi bi-arrow-repeat spin"></i>
                             <span>加载类别中…</span>
@@ -317,6 +345,20 @@
                         <input type="number" class="form-input-add form-input-add--amount" id="id_amount" name="amount"
                                placeholder="0.00" step="0.01" min="0.01" required>
                     </div>
+
+                    <!-- 年度必要大额开销 -->
+                    <div class="form-group-add">
+                        <label class="form-label-add form-label-add--optional">
+                            <i class="bi bi-fire"></i>年度必要大额开销
+                        </label>
+                        <div class="form-check form-check-add">
+                            <input type="checkbox" class="form-check-input" id="id_is_big_expense" name="is_big_expense">
+                            <label class="form-check-label" for="id_is_big_expense">
+                                是 <span class="text-muted small">（非必填）</span>
+                                <div class="form-check-help">房租水电等必需开销算大额必要；其他视情况而定</div>
+                            </label>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer-add">
@@ -336,13 +378,15 @@
     <div class="modal-dialog modal-dialog-centered modal-add-expense">
         <div class="modal-content">
             <div class="modal-header-add">
+                <div class="modal-banner" aria-hidden="true"></div>
+                <button type="button" class="btn-close-add" data-bs-dismiss="modal" aria-label="关闭">
+                    <i class="bi bi-x-lg"></i>
+                </button>
                 <div class="modal-icon-header modal-icon-header--edit">
                     <i class="bi bi-pencil"></i>
                 </div>
                 <h5 class="modal-title-add" id="editExpenseModalLabel">编辑开支</h5>
-                <button type="button" class="btn-close-add" data-bs-dismiss="modal" aria-label="关闭">
-                    <i class="bi bi-x-lg"></i>
-                </button>
+                <p class="modal-subtitle-add">修改这笔支出信息，保存后立即生效</p>
             </div>
             <div class="modal-body-add">
                 <form id="editExpenseForm" novalidate>
@@ -365,10 +409,14 @@
                         <label for="edit_id_category" class="form-label-add">
                             <i class="bi bi-tag"></i>类别
                         </label>
-                        <select class="form-input-add form-select-add" id="edit_id_category" name="category" required>
-                            <option value="">请选择类别</option>
-                            <!-- 类别选项将通过 AJAX 动态加载 -->
-                        </select>
+                        <div class="cat-tree" id="catTreeEdit">
+                            <input type="hidden" id="edit_id_category" name="category" value="">
+                            <div class="cat-tree__trigger" tabindex="0" role="combobox" aria-expanded="false">
+                                <span class="cat-tree__value cat-tree__value--placeholder">请选择类别</span>
+                                <i class="bi bi-chevron-down cat-tree__arrow"></i>
+                            </div>
+                            <div class="cat-tree__panel"></div>
+                        </div>
                         <div id="editCategoryLoading" class="form-loading d-none">
                             <i class="bi bi-arrow-repeat spin"></i>
                             <span>加载类别中…</span>
@@ -390,6 +438,20 @@
                         </label>
                         <input type="number" class="form-input-add form-input-add--amount" id="edit_id_amount" name="amount"
                                placeholder="0.00" step="0.01" min="0.01" required>
+                    </div>
+
+                    <!-- 年度必要大额开销 -->
+                    <div class="form-group-add">
+                        <label class="form-label-add form-label-add--optional">
+                            <i class="bi bi-fire"></i>年度必要大额开销
+                        </label>
+                        <div class="form-check form-check-add">
+                            <input type="checkbox" class="form-check-input" id="edit_id_is_big_expense" name="is_big_expense">
+                            <label class="form-check-label" for="edit_id_is_big_expense">
+                                是 <span class="text-muted small">（非必填）</span>
+                                <div class="form-check-help">房租水电等必需开销算大额必要；其他视情况而定</div>
+                            </label>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -497,6 +559,9 @@
 {% endblock %}
 
 {% block extra_js %}
+{% load static %}
+<script>window.CATEGORIES_API_URL = '{% url "expenses:api_categories" %}';</script>
+<script src="{% static 'category-tree.js' %}?v=2"></script>
 <script>
 
 // ─────────────────────────────────────────────────
@@ -505,51 +570,41 @@ function confirmDelete(form) {
     return confirm('确定要删除这笔开支记录吗？');
 }
 
-// 从数据库加载类别列表
-function loadCategories() {
-    const categorySelect = document.getElementById('id_category');
-    const loadingDiv = document.getElementById('categoryLoading');
+// 页面加载时自动初始化类别树形下拉等组件
+document.addEventListener('DOMContentLoaded', function() {
+    window.catTreeAddApi = initCategoryTree('catTreeAdd');
+    window.catTreeEditApi = initCategoryTree('catTreeEdit');
+    initAmountInputBehavior();  // 初始化金额输入框行为
+    bindBigExpenseAutoCheck('catTreeAdd', 'id_is_big_expense');
+    bindBigExpenseAutoCheck('catTreeEdit', 'edit_id_is_big_expense');
+    initCategoryFilter();  // 初始化类别多选筛选
+});
 
-    // 显示加载状态
-    loadingDiv.classList.remove('d-none');
+// ─── 类别多选筛选 ──────────────────────────────────────────
+function initCategoryFilter() {
+    const btn = document.getElementById('categoryFilterBtn');
+    const checks = document.querySelectorAll('.category-filter-check');
+    if (!btn || !checks.length) return;
 
-    fetch('{% url "expenses:api_categories" %}', {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        if (data.success && data.categories) {
-            const firstOption = categorySelect.options[0];
-            categorySelect.innerHTML = '';
-            categorySelect.appendChild(firstOption);
-            data.categories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category.id;
-                option.textContent = category.full_path;
-                categorySelect.appendChild(option);
-            });
-        }
-    })
-    .catch(() => {
-        // silently fail
-    })
-    .finally(() => {
-        loadingDiv.classList.add('d-none');
+    const updateBtnLabel = function() {
+        const count = document.querySelectorAll('.category-filter-check:checked').length;
+        btn.textContent = count > 0 ? `类别筛选（已选 ${count}）` : '类别筛选';
+    };
+    checks.forEach(cb => cb.addEventListener('change', updateBtnLabel));
+    updateBtnLabel();
+
+    // 全选 / 清空
+    document.getElementById('categorySelectAll').addEventListener('click', function(e) {
+        e.preventDefault();
+        checks.forEach(cb => { cb.checked = true; });
+        updateBtnLabel();
+    });
+    document.getElementById('categoryClearAll').addEventListener('click', function(e) {
+        e.preventDefault();
+        checks.forEach(cb => { cb.checked = false; });
+        updateBtnLabel();
     });
 }
-
-// 页面加载时自动加载类别列表
-document.addEventListener('DOMContentLoaded', function() {
-    loadCategories();
-    loadCategoriesForEdit();  // 加载编辑模态框的类别列表
-    initAmountInputBehavior();  // 初始化金额输入框行为
-});
 
 // 添加开支 AJAX 提交
 document.getElementById('submitExpenseBtn').addEventListener('click', function() {
@@ -752,45 +807,7 @@ function initAmountInputBehavior() {
 }
 
 // ─── 编辑功能相关函数 ───────────────────────────────────────
-
-// 为编辑模态框加载类别列表
-function loadCategoriesForEdit() {
-    const categorySelect = document.getElementById('edit_id_category');
-    const loadingDiv = document.getElementById('editCategoryLoading');
-
-    // 显示加载状态
-    loadingDiv.classList.remove('d-none');
-
-    fetch('{% url "expenses:api_categories" %}', {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        if (data.success && data.categories) {
-            const firstOption = categorySelect.options[0];
-            categorySelect.innerHTML = '';
-            categorySelect.appendChild(firstOption);
-            data.categories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category.id;
-                option.textContent = category.full_path;
-                categorySelect.appendChild(option);
-            });
-        }
-    })
-    .catch(error => {
-        // silently fail
-    })
-    .finally(() => {
-        loadingDiv.classList.add('d-none');
-    });
-}
+// 编辑弹窗的类别树与添加弹窗共用同一份数据（fetchCategoryTree 全局缓存），无需单独加载
 
 // 打开编辑模态框并加载数据
 function openEditModal(expenseId) {
@@ -833,15 +850,11 @@ function openEditModal(expenseId) {
     document.getElementById('edit_id_date').value = dateValue;
     document.getElementById('edit_id_description').value = descValue;
     document.getElementById('edit_id_amount').value = amountValue;
+    document.getElementById('edit_id_is_big_expense').checked = targetRow.dataset.isBig === '1';
 
-    // 设置类别下拉框的值
-    const categorySelect = document.getElementById('edit_id_category');
-    // 需要根据类别名称匹配下拉框选项
-    for (let i = 1; i < categorySelect.options.length; i++) {
-        if (categorySelect.options[i].textContent === categoryText) {
-            categorySelect.selectedIndex = i;
-            break;
-        }
+    // 设置类别（树形下拉按完整路径回显，如「租房开销 > 房租」）
+    if (window.catTreeEditApi) {
+        setCategoryTreeByPath(window.catTreeEditApi, 'catTreeEdit', categoryText);
     }
 
     // 清除之前的错误提示
@@ -1148,7 +1161,29 @@ function renderMonthlyTrendBar(monthlyData, year) {
     const maxVal = Math.max(...monthValues);
     const maxIdx = monthValues.indexOf(maxVal);
     const total = monthValues.reduce((a, b) => a + b, 0);
-    const avg = total / 12;
+    // 均值：以当年有支出记录的月份数作为分母
+    const monthsWithRecords = monthValues.filter(v => v > 0).length;
+    const avg = monthsWithRecords > 0 ? total / monthsWithRecords : 0;
+    const avgText = '均值 ¥' + avg.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    // 均值标注插件：在虚线最右侧上方以灰色字体标注均值
+    const avgLabelPlugin = {
+        id: 'avgLabel',
+        afterDatasetsDraw(chart) {
+            if (!isFinite(avg) || avg <= 0) return;
+            const {ctx, chartArea, scales} = chart;
+            const y = scales.y.getPixelForValue(avg);
+            if (y < chartArea.top || y > chartArea.bottom) return;
+            const x = scales.x.getPixelForValue(monthLabels[monthLabels.length - 1]);
+            ctx.save();
+            ctx.font = '600 11px "Segoe UI", "Microsoft YaHei", sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(avgText, x, y - 4);
+            ctx.restore();
+        }
+    };
 
     // 渐变填充
     const chartCtx = canvas.getContext('2d');
@@ -1163,6 +1198,7 @@ function renderMonthlyTrendBar(monthlyData, year) {
 
     monthlyTrendBarChartInstance = new Chart(canvas, {
         type: 'line',
+        plugins: [avgLabelPlugin],
         data: {
             labels: monthLabels,
             datasets: [{
@@ -1185,7 +1221,24 @@ function renderMonthlyTrendBar(monthlyData, year) {
                     borderColor: function(ctx) {
                         return MAIN_COLOR;
                     }
-                }
+                },
+                order: 2
+            },
+            {
+                // 均值参考线：虚线，平行于 x 轴
+                label: '月均值(元)',
+                data: Array.from({length: 12}, () => avg),
+                type: 'line',
+                borderColor: '#94a3b8',
+                borderWidth: 1.5,
+                borderDash: [6, 4],
+                borderCapStyle: 'round',
+                pointRadius: 0,
+                pointHitRadius: 0,
+                pointHoverRadius: 0,
+                fill: false,
+                tension: 0,
+                order: 1
             }]
         },
         options: {
@@ -1210,6 +1263,10 @@ function renderMonthlyTrendBar(monthlyData, year) {
                     padding: 12,
                     cornerRadius: 10,
                     displayColors: false,
+                    filter: function(item) {
+                        // 悬停提示只显示月支出数据，不显示均值参考线
+                        return item.datasetIndex === 0;
+                    },
                     titleFont: { size: 13, weight: '600' },
                     bodyFont: { size: 12 },
                     titleMarginBottom: 6,

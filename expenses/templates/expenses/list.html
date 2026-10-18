@@ -346,7 +346,7 @@
                                placeholder="0.00 或 12.33+4.59+3.58*6-1" inputmode="text" autocomplete="off" required>
                         <div class="amount-expr-hint" id="addAmountExprHint"></div>
                         <div class="amount-expr-tip">
-                            <i class="bi bi-calculator"></i>支持合计运算，如 12.33+4.59+3.58*6-1
+                            <i class="bi bi-calculator"></i>支持合计运算（+ - * /），如 12.33+4.59+3.58*6-1，结果需大于零
                         </div>
                     </div>
 
@@ -444,7 +444,7 @@
                                placeholder="0.00 或 12.33+4.59+3.58*6-1" inputmode="text" autocomplete="off" required>
                         <div class="amount-expr-hint" id="editAmountExprHint"></div>
                         <div class="amount-expr-tip">
-                            <i class="bi bi-calculator"></i>支持合计运算，如 12.33+4.59+3.58*6-1
+                            <i class="bi bi-calculator"></i>支持合计运算（+ - * /），如 12.33+4.59+3.58*6-1，结果需大于零
                         </div>
                     </div>
 
@@ -570,7 +570,7 @@
 {% load static %}
 <script>window.CATEGORIES_API_URL = '{% url "expenses:api_categories" %}';</script>
 <script src="{% static 'category-tree.js' %}?v=2"></script>
-<script src="{% static 'amount-expression.js' %}?v=1"></script>
+<script src="{% static 'amount-expression.js' %}?v=2"></script>
 <script>
 
 // ─────────────────────────────────────────────────
@@ -635,16 +635,15 @@ document.getElementById('submitExpenseBtn').addEventListener('click', function()
         return;
     }
 
-    // 金额支持表达式：本地求值校验（后端会重新计算后落库）
-    const amountResult = window.evalAmountExpression(amount);
+    // 金额支持表达式：本地校验（语法 + 结果必须大于零，后端会重新计算后落库）
+    const amountInput = document.getElementById('id_amount');
+    const amountHint = document.getElementById('addAmountExprHint');
+    const amountResult = window.validateAmount(amount);
+    window.renderAmountHint(amountHint, amountResult, amountInput);
     if (!amountResult.ok) {
         errorDiv.textContent = amountResult.error;
         errorDiv.classList.remove('d-none');
-        return;
-    }
-    if (amountResult.value <= 0) {
-        errorDiv.textContent = '金额计算结果必须大于零。';
-        errorDiv.classList.remove('d-none');
+        if (amountInput) amountInput.focus();
         return;
     }
 
@@ -807,7 +806,11 @@ function openEditModal(expenseId) {
     document.getElementById('editExpenseId').value = expenseId;
     document.getElementById('edit_id_date').value = dateValue;
     document.getElementById('edit_id_description').value = descValue;
-    document.getElementById('edit_id_amount').value = amountValue;
+    const editAmountInput = document.getElementById('edit_id_amount');
+    editAmountInput.value = amountValue;
+    // 触发实时合计提示刷新（回填的是纯数字，hint 同步显示合计）
+    editAmountInput.dispatchEvent(new Event('input', { bubbles: true }));
+    editAmountInput.classList.remove('is-invalid');
     document.getElementById('edit_id_is_big_expense').checked = targetRow.dataset.isBig === '1';
 
     // 设置类别（树形下拉按完整路径回显，如「租房开销 > 房租」）
@@ -1481,16 +1484,15 @@ document.getElementById('submitEditBtn').addEventListener('click', function() {
         return;
     }
 
-    // 金额支持表达式：本地求值校验（后端会重新计算后落库）
-    const amountResult = window.evalAmountExpression(amount);
+    // 金额支持表达式：本地校验（语法 + 结果必须大于零，后端会重新计算后落库）
+    const amountInput = document.getElementById('edit_id_amount');
+    const amountHint = document.getElementById('editAmountExprHint');
+    const amountResult = window.validateAmount(amount);
+    window.renderAmountHint(amountHint, amountResult, amountInput);
     if (!amountResult.ok) {
         errorDiv.textContent = amountResult.error;
         errorDiv.classList.remove('d-none');
-        return;
-    }
-    if (amountResult.value <= 0) {
-        errorDiv.textContent = '金额计算结果必须大于零。';
-        errorDiv.classList.remove('d-none');
+        if (amountInput) amountInput.focus();
         return;
     }
 

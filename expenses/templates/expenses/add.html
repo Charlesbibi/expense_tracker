@@ -97,7 +97,7 @@
                         <div class="amount-expr-hint" id="amountExprHint"></div>
                         <div class="amount-expr-tip">
                             <i class="bi bi-calculator me-1"></i>
-                            支持多笔金额合计，如 <code>12.33+4.59+3.58*6-1</code>，仅可使用数字与 + - * / ( )
+                            支持多笔金额合计，如 <code>12.33+4.59+3.58*6-1</code>，仅可使用数字与 + - * / ( )，计算结果需大于零
                         </div>
                         {% if form.amount.errors %}
                             <div class="field-error"><i class="bi bi-x-circle me-1"></i>{{ form.amount.errors.as_text }}</div>
@@ -148,7 +148,7 @@
 {% load static %}
 <script>window.CATEGORIES_API_URL = '{% url "expenses:api_categories" %}';</script>
 <script src="{% static 'category-tree.js' %}?v=2"></script>
-<script src="{% static 'amount-expression.js' %}?v=1"></script>
+<script src="{% static 'amount-expression.js' %}?v=2"></script>
 <script>
 // 金额表达式：实时显示合计结果
 (function () {
@@ -157,29 +157,16 @@
     if (amountInput && window.bindAmountExpressionHint) {
         window.bindAmountExpressionHint(amountInput, hintEl);
     }
-    // 提交前本地校验（后端仍会重新求值，双重校验）
+    // 提交前本地校验：语法 + 结果必须大于零（后端仍会重新求值，双重校验）
     const form = document.getElementById('expenseForm');
     if (form && amountInput) {
         form.addEventListener('submit', function (e) {
-            const result = window.evalAmountExpression(amountInput.value);
+            const result = window.validateAmount(amountInput.value);
+            window.renderAmountHint(hintEl, result, amountInput);
             if (!result.ok) {
                 e.preventDefault();
-                if (hintEl) {
-                    hintEl.textContent = result.error;
-                    hintEl.classList.remove('is-ok');
-                    hintEl.classList.add('is-error');
-                }
                 amountInput.focus();
-                return;
-            }
-            if (result.value <= 0) {
-                e.preventDefault();
-                if (hintEl) {
-                    hintEl.textContent = '金额计算结果必须大于零';
-                    hintEl.classList.remove('is-ok');
-                    hintEl.classList.add('is-error');
-                }
-                amountInput.focus();
+                amountInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }
         });
     }

@@ -38,6 +38,7 @@
     function Parser(src) {
         this.src = src;
         this.pos = 0;
+        this.termCount = 0;   // 顶层参与加减的项数，用于「N 项合并」提示
     }
     Parser.prototype.peek = function () {
         return this.src.charAt(this.pos);
@@ -50,13 +51,16 @@
         while (this.pos < this.src.length && /\s/.test(this.src.charAt(this.pos))) this.pos++;
     };
     Parser.prototype.parseExpression = function () {
+        this.depth = (this.depth || 0) + 1;
+        var isTop = this.depth === 1;   // 仅统计最外层参与加减的项数
         var value = this.parseTerm();
+        if (isTop) this.termCount++;
         for (;;) {
             this.skipSpace();
             var ch = this.peek();
-            if (ch === '+') { this.pos++; value += this.parseTerm(); }
-            else if (ch === '-') { this.pos++; value -= this.parseTerm(); }
-            else return value;
+            if (ch === '+') { this.pos++; value += this.parseTerm(); if (isTop) this.termCount++; }
+            else if (ch === '-') { this.pos++; value -= this.parseTerm(); if (isTop) this.termCount++; }
+            else { this.depth--; return value; }
         }
     };
     Parser.prototype.parseTerm = function () {
@@ -110,7 +114,7 @@
     window.evalAmountExpression = function (raw) {
         try {
             var text = normalize(raw);
-            if (!text) return { ok: false, error: '请输入金额' };
+            if (!text) return { ok: false, empty: true, error: '请输入金额' };
             if (!/^[0-9+\-*/().\s]+$/.test(text)) {
                 return { ok: false, error: '金额只能包含数字和 + - * / ( ) 运算符' };
             }
@@ -124,7 +128,7 @@
 
             // 四舍五入到分（与后端 ROUND_HALF_UP 对齐，规避浮点表示误差）
             var rounded = Math.round(value * 100 + (value > 0 ? 1e-9 : -1e-9)) / 100;
-            return { ok: true, value: rounded };
+            return { ok: true, value: rounded, exact: value, termCount: parser.termCount };
         } catch (err) {
             return { ok: false, error: err.message || '金额表达式格式有误' };
         }
@@ -136,30 +140,83 @@
         return (value < 0 ? '-¥' : '¥') + fixed;
     };
 
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
     /**
-     * 绑定输入框的实时合计提示
+     * 完整校验：语法 → 除零 → 结果必须大于零（与后端 ExpenseForm 规则一致）
+     * @param {string} raw 用户输入
+     * @returns {{ok:boolean, value?:number, error?:string, empty?:boolean, termCount?:number, code?:string}}
+     */
+    window.validateAmount = function (raw) {
+        var result = window.evalAmountExpression(raw);
+        if (!result.ok) return result;
+        if (!(result.value > 0)) {
+            var error = (result.exact > 0)
+                ? '金额太小，至少需要 ¥0.01'
+                : '金额必须大于零，当前计算结果 ' + window.formatAmountValue(result.value);
+            return {
+                ok: false,
+                code: 'not-positive',
+                value: result.value,
+                termCount: result.termCount,
+                error: error
+            };
+        }
+        return result;
+    };
+
+    /**
+     * 渲染校验结果到提示容器，并同步输入框的无效状态
+     * @param {HTMLElement} hintEl 提示容器
+     * @param {object} result validateAmount 的返回值
+     * @param {HTMLInputElement} [input] 关联的金额输入框（用于标红）
+     */
+    window.renderAmountHint = function (hintEl, result, input) {
+        if (!hintEl) return;
+        hintEl.className = 'amount-expr-hint';
+        hintEl.innerHTML = '';
+        if (input) input.classList.remove('is-invalid');
+
+        if (result.empty) return;   // 未输入：不打扰用户
+
+        if (!result.ok) {
+            hintEl.classList.add('is-error');
+            hintEl.innerHTML =
+                '<span class="ae-tip ae-tip--error">' +
+                '<i class="bi bi-exclamation-circle-fill"></i>' +
+                '<span>' + escapeHtml(result.error) + '</span>' +
+                '</span>';
+            if (input) input.classList.add('is-invalid');
+            return;
+        }
+
+        hintEl.classList.add('is-ok');
+        var badge = (result.termCount && result.termCount > 1)
+            ? '<span class="ae-tip__badge">' + result.termCount + ' 项合并</span>'
+            : '';
+        hintEl.innerHTML =
+            '<span class="ae-tip ae-tip--ok">' +
+            '<span class="ae-tip__label"><i class="bi bi-calculator-fill"></i>合计</span>' +
+            '<b class="ae-tip__value">' + escapeHtml(window.formatAmountValue(result.value)) + '</b>' +
+            badge +
+            '</span>';
+    };
+
+    /**
+     * 绑定输入框的实时合计提示（含大于零校验）
      * @param {HTMLInputElement} input 金额输入框
      * @param {HTMLElement} hintEl 提示容器（可为 null）
-     * @returns {{value: number|null, ok: boolean}} 当前求值结果
+     * @returns {object} 当前校验结果
      */
     window.bindAmountExpressionHint = function (input, hintEl) {
-        if (!input) return { value: null, ok: false };
+        if (!input) return { ok: false, empty: true };
         function update() {
-            var raw = input.value;
-            var result = window.evalAmountExpression(raw);
-            if (!hintEl) return result;
-            hintEl.classList.remove('is-error', 'is-ok');
-            if (!raw.trim()) {
-                hintEl.textContent = '';
-                return result;
-            }
-            if (result.ok) {
-                hintEl.textContent = '= ' + window.formatAmountValue(result.value);
-                hintEl.classList.add('is-ok');
-            } else {
-                hintEl.textContent = result.error;
-                hintEl.classList.add('is-error');
-            }
+            var result = window.validateAmount(input.value);
+            window.renderAmountHint(hintEl, result, input);
             return result;
         }
         input.addEventListener('input', update);
@@ -171,7 +228,6 @@
                 e.preventDefault();
             }
         });
-        update();
         return update();
     };
 })();

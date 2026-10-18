@@ -583,16 +583,41 @@ def visualizations_api(request):
     except ValueError:
         year = current_real_year
 
+    # 终点月份：默认当前月
+    try:
+        month = int(request.GET.get('month'))
+    except (TypeError, ValueError):
+        month = datetime.now().month
+
     # 按月统计
     monthly_data = {}
-    for month in range(1, 13):
-        start_date = datetime(year, month, 1)
-        end_day = monthrange(year, month)[1]
-        end_date = datetime(year, month, end_day).date()
+    for month_i in range(1, 13):
+        start_date = datetime(year, month_i, 1)
+        end_day = monthrange(year, month_i)[1]
+        end_date = datetime(year, month_i, end_day).date()
         total = Expense.objects.filter(
             date__range=(start_date.date(), end_date)
         ).aggregate(Sum('amount'))['amount__sum'] or 0
-        monthly_data[month] = float(total)
+        monthly_data[month_i] = float(total)
+
+    # 滚动 12 个月序列：以 (year, month) 为终点向前倒推 12 个月（处理跨年）
+    rolling_points = []
+    ry, rm = year, month
+    for _ in range(12):
+        rolling_points.append((ry, rm))
+        rm -= 1
+        if rm == 0:
+            rm = 12
+            ry -= 1
+    rolling_points.reverse()  # 从最早月份到终点月
+    rolling_monthly_data = []
+    for ry, rm in rolling_points:
+        start_date = datetime(ry, rm, 1)
+        end_day = monthrange(ry, rm)[1]
+        total = Expense.objects.filter(
+            date__range=(start_date.date(), datetime(ry, rm, end_day).date())
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        rolling_monthly_data.append({'year': ry, 'month': rm, 'total': float(total)})
 
     # 按分类统计
     category_data = Expense.objects.filter(
@@ -613,7 +638,9 @@ def visualizations_api(request):
 
     return JsonResponse({
         'year': year,
+        'month': month,
         'monthly_data': monthly_data,
+        'rolling_monthly_data': rolling_monthly_data,
         'categories': categories,
         'amounts': amounts,
     })

@@ -909,8 +909,8 @@ if (monthlyAnalysisModal) {
             periodEl.textContent = `${currentYear}年${currentMonth}月`;
         }
 
-        // 加载月度支出趋势柱状图
-        fetchMonthlyTrendData(currentYear);
+        // 加载月度支出趋势柱状图（以筛选月份为终点，向前倒推 12 个月）
+        fetchMonthlyTrendData(currentYear, currentMonth);
 
         // 加载图表数据
         fetchAnalysisData();
@@ -1131,37 +1131,70 @@ function fetchAndShowCategoryDetail(category) {
 }
 
 // ─── 月度支出趋势柱状图 ───────────────────────────────────
-function fetchMonthlyTrendData(year) {
+function fetchMonthlyTrendData(year, month) {
     const yearLabel = document.getElementById('monthlyTrendYear');
-    if (yearLabel) yearLabel.textContent = year + ' 年';
+    // 范围标签：终点月向前倒推 12 个月（跨年处理）
+    let label;
+    if (year && month) {
+        let sy = year, sm = month - 11;
+        while (sm <= 0) { sm += 12; sy -= 1; }
+        label = sy + '.' + String(sm).padStart(2, '0') + ' - ' + year + '.' + String(month).padStart(2, '0');
+    } else {
+        label = year + ' 年';
+    }
+    if (yearLabel) yearLabel.textContent = label;
 
-    fetch('{% url "expenses:api_visualizations" %}?year=' + year, {
+    const url = month
+        ? '{% url "expenses:api_visualizations" %}?year=' + year + '&month=' + month
+        : '{% url "expenses:api_visualizations" %}?year=' + year;
+    fetch(url, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(data => {
-        renderMonthlyTrendBar(data.monthly_data, year);
+        renderMonthlyTrendBar(data.rolling_monthly_data, year);
     })
     .catch(() => {
         // 静默失败
     });
 }
 
-function renderMonthlyTrendBar(monthlyData, year) {
+function renderMonthlyTrendBar(rollingData, fallbackYear) {
     const canvas = document.getElementById('monthlyTrendBarChart');
     if (!canvas) return;
+    // 兼容旧数据格式（12 个月的 {1..12: 金额} 对象）
+    let points;
+    if (Array.isArray(rollingData)) {
+        points = rollingData.map(d => ({ year: d.year, month: d.month, total: d.total }));
+    } else {
+        const now = new Date();
+        const y = fallbackYear || now.getFullYear();
+        const endM = now.getMonth() + 1;
+        points = [];
+        let sy = y, sm = endM - 11;
+        while (sm <= 0) { sm += 12; sy -= 1; }
+        for (let i = 0; i < 12; i++) {
+            const cur = ((sm + i - 1) % 12) + 1;
+            const curY = (sm + i - 1) >= 12 ? sy + 1 : sy;
+            points.push({ year: curY, month: cur, total: rollingData[cur] || 0 });
+        }
+    }
 
     if (monthlyTrendBarChartInstance) {
         monthlyTrendBarChartInstance.destroy();
         monthlyTrendBarChartInstance = null;
     }
 
-    const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    const monthValues = Array.from({length: 12}, (_, i) => monthlyData[i + 1] || 0);
+    // x 轴标签：两行显示——上行月份，下行仅在年份变化（含首点）时显示年份
+    const labels = points.map((p, i) => {
+        const showYear = i === 0 || p.year !== points[i - 1].year;
+        return showYear ? [p.month + '月', p.year] : [p.month + '月', ' '];
+    });
+    const monthValues = points.map(p => p.total);
     const maxVal = Math.max(...monthValues);
     const maxIdx = monthValues.indexOf(maxVal);
     const total = monthValues.reduce((a, b) => a + b, 0);
-    // 均值：以当年有支出记录的月份数作为分母
+    // 均值：以区间内有支出记录的月份数作为分母
     const monthsWithRecords = monthValues.filter(v => v > 0).length;
     const avg = monthsWithRecords > 0 ? total / monthsWithRecords : 0;
     const avgText = '均值 ¥' + avg.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -1174,7 +1207,7 @@ function renderMonthlyTrendBar(monthlyData, year) {
             const {ctx, chartArea, scales} = chart;
             const y = scales.y.getPixelForValue(avg);
             if (y < chartArea.top || y > chartArea.bottom) return;
-            const x = scales.x.getPixelForValue(monthLabels[monthLabels.length - 1]);
+            const x = scales.x.getPixelForValue(labels.length - 1);
             ctx.save();
             ctx.font = '600 11px "Segoe UI", "Microsoft YaHei", sans-serif';
             ctx.fillStyle = '#94a3b8';
@@ -1200,7 +1233,7 @@ function renderMonthlyTrendBar(monthlyData, year) {
         type: 'line',
         plugins: [avgLabelPlugin],
         data: {
-            labels: monthLabels,
+            labels: labels,
             datasets: [{
                 label: '月支出(元)',
                 data: monthValues,
@@ -1272,7 +1305,8 @@ function renderMonthlyTrendBar(monthlyData, year) {
                     titleMarginBottom: 6,
                     callbacks: {
                         title: function(items) {
-                            return items[0].label + ' · ' + year + '年';
+                            const p = points[items[0].dataIndex];
+                            return p.year + '年' + p.month + '月';
                         },
                         label: function(ctx) {
                             const val = ctx.raw;

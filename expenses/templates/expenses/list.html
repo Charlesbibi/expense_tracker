@@ -342,8 +342,12 @@
                         <label for="id_amount" class="form-label-add">
                             <i class="bi bi-currency-yen"></i>金额
                         </label>
-                        <input type="number" class="form-input-add form-input-add--amount" id="id_amount" name="amount"
-                               placeholder="0.00" step="0.01" min="0.01" required>
+                        <input type="text" class="form-input-add form-input-add--amount" id="id_amount" name="amount"
+                               placeholder="0.00 或 12.33+4.59+3.58*6-1" inputmode="text" autocomplete="off" required>
+                        <div class="amount-expr-hint" id="addAmountExprHint"></div>
+                        <div class="amount-expr-tip">
+                            <i class="bi bi-calculator"></i>支持合计运算，如 12.33+4.59+3.58*6-1
+                        </div>
                     </div>
 
                     <!-- 年度必要大额开销 -->
@@ -436,8 +440,12 @@
                         <label for="edit_id_amount" class="form-label-add">
                             <i class="bi bi-currency-yen"></i>金额
                         </label>
-                        <input type="number" class="form-input-add form-input-add--amount" id="edit_id_amount" name="amount"
-                               placeholder="0.00" step="0.01" min="0.01" required>
+                        <input type="text" class="form-input-add form-input-add--amount" id="edit_id_amount" name="amount"
+                               placeholder="0.00 或 12.33+4.59+3.58*6-1" inputmode="text" autocomplete="off" required>
+                        <div class="amount-expr-hint" id="editAmountExprHint"></div>
+                        <div class="amount-expr-tip">
+                            <i class="bi bi-calculator"></i>支持合计运算，如 12.33+4.59+3.58*6-1
+                        </div>
                     </div>
 
                     <!-- 年度必要大额开销 -->
@@ -562,6 +570,7 @@
 {% load static %}
 <script>window.CATEGORIES_API_URL = '{% url "expenses:api_categories" %}';</script>
 <script src="{% static 'category-tree.js' %}?v=2"></script>
+<script src="{% static 'amount-expression.js' %}?v=1"></script>
 <script>
 
 // ─────────────────────────────────────────────────
@@ -626,8 +635,15 @@ document.getElementById('submitExpenseBtn').addEventListener('click', function()
         return;
     }
 
-    if (parseFloat(amount) <= 0) {
-        errorDiv.textContent = '金额必须大于零。';
+    // 金额支持表达式：本地求值校验（后端会重新计算后落库）
+    const amountResult = window.evalAmountExpression(amount);
+    if (!amountResult.ok) {
+        errorDiv.textContent = amountResult.error;
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    if (amountResult.value <= 0) {
+        errorDiv.textContent = '金额计算结果必须大于零。';
         errorDiv.classList.remove('d-none');
         return;
     }
@@ -731,77 +747,19 @@ function initAmountInputBehavior() {
     const amountInputs = document.querySelectorAll('.form-input-add--amount');
 
     amountInputs.forEach(input => {
-        // 1. 输入时自动格式化（添加千位分隔符）
-        let lastValue = '';
+        // 提示元素：id_amount → addAmountExprHint，edit_id_amount → editAmountExprHint
+        const hintEl = input.id === 'edit_id_amount'
+            ? document.getElementById('editAmountExprHint')
+            : document.getElementById('addAmountExprHint');
 
-        input.addEventListener('input', function(e) {
-            const value = e.target.value;
+        // 1. 表达式实时合计提示 + 输入字符白名单
+        if (window.bindAmountExpressionHint) {
+            window.bindAmountExpressionHint(input, hintEl);
+        }
 
-            // 只允许数字和小数点
-            if (!/^\d*\.?\d*$/.test(value)) {
-                e.target.value = lastValue;
-                return;
-            }
-
-            // 保存有效值
-            lastValue = value;
-
-            // 输入时显示简单的提示
-            if (value && !isNaN(parseFloat(value))) {
-                const formatted = parseFloat(value).toLocaleString('zh-CN', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2
-                });
-                e.target.title = formatted;
-            } else {
-                e.target.title = '';
-            }
-        });
-
-        // 2. 失去焦点时格式化显示
-        input.addEventListener('blur', function(e) {
-            const value = e.target.value;
-            if (value && !isNaN(parseFloat(value))) {
-                // 保留两位小数
-                const numValue = parseFloat(value);
-                if (numValue > 0) {
-                    e.target.value = numValue.toFixed(2);
-                }
-            }
-        });
-
-        // 3. 获得焦点时选中全部内容，方便快速修改
+        // 2. 获得焦点时选中全部内容，方便快速修改
         input.addEventListener('focus', function(e) {
             e.target.select();
-        });
-
-        // 4. 限制小数位数（最多2位）
-        input.addEventListener('keydown', function(e) {
-            const value = e.target.value;
-            const hasDot = value.includes('.');
-
-            // 如果已经有小数点，限制小数位数为2位
-            if (hasDot) {
-                const parts = value.split('.');
-                if (parts[1] && parts[1].length >= 2) {
-                    // 允许删除键和导航键
-                    const allowedKeys = [
-                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                        'Home', 'End'
-                    ];
-                    if (!allowedKeys.includes(e.key)) {
-                        e.preventDefault();
-                    }
-                }
-            }
-        });
-
-        // 5. 防止输入多个小数点
-        input.addEventListener('keypress', function(e) {
-            if (e.key === '.' && e.target.value.includes('.')) {
-                e.preventDefault();
-            }
         });
     });
 }
@@ -1523,8 +1481,15 @@ document.getElementById('submitEditBtn').addEventListener('click', function() {
         return;
     }
 
-    if (parseFloat(amount) <= 0) {
-        errorDiv.textContent = '金额必须大于零。';
+    // 金额支持表达式：本地求值校验（后端会重新计算后落库）
+    const amountResult = window.evalAmountExpression(amount);
+    if (!amountResult.ok) {
+        errorDiv.textContent = amountResult.error;
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    if (amountResult.value <= 0) {
+        errorDiv.textContent = '金额计算结果必须大于零。';
         errorDiv.classList.remove('d-none');
         return;
     }

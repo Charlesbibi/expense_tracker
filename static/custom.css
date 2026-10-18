@@ -2374,3 +2374,35 @@ body {
 }
 
 
+
+/* ── 金额表达式输入：实时合计提示 ───────────────────────── */
+.amount-expr-hint {
+    margin-top: 6px;
+    font-size: .8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-height: 1.1em;
+    line-height: 1.3;
+}
+.amount-expr-hint.is-ok {
+    color: var(--primary);
+}
+.amount-expr-hint.is-error {
+    color: #dc2626;
+}
+.amount-expr-tip {
+    margin-top: 3px;
+    font-size: .72rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+.amount-expr-tip code {
+    font-size: .95em;
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: #f1f5fb;
+    color: #475569;
+}
+.amount-input-group .form-control.amount-expr-input {
+    font-variant-numeric: tabular-nums;
+}

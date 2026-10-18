@@ -1,5 +1,7 @@
 from django import forms
+from decimal import Decimal
 from .models import Expense, ExpenseCategory
+from .amount_expr import evaluate_amount_expression, AmountExpressionError
 
 class ExpenseForm(forms.ModelForm):
     # 类别只显示叶子节点（无子分类）：有二级的不显示一级，仅一级的显示自身
@@ -8,6 +10,17 @@ class ExpenseForm(forms.ModelForm):
         label='类别',
         empty_label='请选择类别'
     )
+    # 金额支持表达式输入（如 12.33+4.59+3.58*6-1），后端求值后再落库
+    amount = forms.CharField(
+        label='金额（元）',
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'placeholder': '0.00 或 12.33+4.59+3.58*6-1',
+            'inputmode': 'text',
+            'autocomplete': 'off',
+            'class': 'amount-expr-input',
+        })
+    )
 
     class Meta:
         model = Expense
@@ -15,16 +28,20 @@ class ExpenseForm(forms.ModelForm):
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.TextInput(attrs={'placeholder': '请输入开支描述（可选）...'}),
-            'amount': forms.NumberInput(attrs={'placeholder': '0.00', 'step': '0.01'}),
         }
         labels = {
             'is_big_expense': '年度必要大额开销',
         }
 
     def clean_amount(self):
-        amount = self.cleaned_data.get('amount')
-        if amount and amount <= 0:
-            raise forms.ValidationError("金额必须大于零。")
+        """支持表达式：先安全求值，再校验结果"""
+        raw = (self.cleaned_data.get('amount') or '').strip()
+        try:
+            amount = evaluate_amount_expression(raw)
+        except AmountExpressionError as exc:
+            raise forms.ValidationError(str(exc))
+        if amount <= 0:
+            raise forms.ValidationError('金额计算结果必须大于零（当前为 %s）。' % amount)
         return amount
 
     def __init__(self, *args, **kwargs):
